@@ -2,7 +2,7 @@
 
 A game featuring a robot that explores, digs, and collects items in a procedurally generated world.
 
-![Robot Game Screenshot](assets/robot_game_screenshot.png)
+![Robot Game Screenshot](Screenshot.jpg)
 
 ## Overview
 This project is based on the original robot platformer game, which has been preserved in the `blipp.html` file and as a backup in the static directory.
