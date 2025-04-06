@@ -21,7 +21,7 @@ The project has been modularized for better code organization and maintainabilit
 - `backup/` - Contains backups of previous versions
 
 ## Getting Started
-- Clone this repository: `git clone https://github.com/yourusername/blipp-robot-game.git`
+- Clone this repository: `git clone https://github.com/Melthizar/blipp.git`
 - Open `index.html` in a web browser to play the modular version
 - Open `blipp.html` to play the original version
 
