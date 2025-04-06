@@ -6,6 +6,10 @@ const Robot = (() => {
     const JUMP_FORCE = 12;
     const DIG_DURATION = 60; // frames
     
+    // Visual state tracking
+    let lastGroundedState = false;
+    let jumpEffectPlayed = false;
+    
     // Robot state
     let robot = {
         x: 0,
@@ -61,7 +65,12 @@ const Robot = (() => {
                     
                     robot.isJumping = true;
                     robot.isGrounded = false;
+                    jumpEffectPlayed = false;
                     robot.actionTimer = 20;
+                    
+                    // Add jump visual effect
+                    createJumpEffect();
+                    
                 } else if (decision < 0.9) {
                     // Try to dig - now can dig even when not grounded
                     tryDig();
@@ -70,10 +79,98 @@ const Robot = (() => {
                     // Stand still
                     robot.vx = 0;
                     robot.actionTimer = Math.floor(Math.random() * 30) + 15;
+                    
+                    // Occasional thinking particle effect when idle
+                    if (Math.random() < 0.15) {
+                        createThinkingEffect();
+                    }
                 }
             } else {
                 robot.actionTimer--;
             }
+        }
+    }
+    
+    function createJumpEffect() {
+        // Create visual jump effect if renderer is available
+        if (typeof Renderer !== 'undefined' && Renderer.addParticleEffect) {
+            Renderer.addParticleEffect(
+                robot.x + robot.width / 2,
+                robot.y + robot.height,
+                {
+                    count: 8,
+                    color: 'rgba(200, 200, 200, 0.5)',
+                    size: 3,
+                    speedMultiplier: 0.8,
+                    gravity: false
+                }
+            );
+        }
+    }
+    
+    function createThinkingEffect() {
+        // Create thought bubble effect above robot's head
+        if (typeof Renderer !== 'undefined' && Renderer.addParticleEffect) {
+            const bubbleX = robot.x + (robot.direction > 0 ? robot.width - 5 : 5);
+            
+            Renderer.addParticleEffect(
+                bubbleX,
+                robot.y - 8,
+                {
+                    count: 1,
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    size: 2,
+                    speedMultiplier: 0.2,
+                    lifeMultiplier: 2,
+                    gravity: false
+                }
+            );
+        }
+    }
+    
+    function createLandingEffect() {
+        // Create visual dust effect when landing
+        if (typeof Renderer !== 'undefined' && Renderer.addParticleEffect) {
+            Renderer.addParticleEffect(
+                robot.x + robot.width / 2 - 5,
+                robot.y + robot.height,
+                {
+                    count: 6,
+                    color: 'rgba(180, 180, 160, 0.5)',
+                    size: 2,
+                    speedMultiplier: 0.5,
+                    gravity: false
+                }
+            );
+            
+            Renderer.addParticleEffect(
+                robot.x + robot.width / 2 + 5,
+                robot.y + robot.height,
+                {
+                    count: 6,
+                    color: 'rgba(180, 180, 160, 0.5)',
+                    size: 2,
+                    speedMultiplier: 0.5,
+                    gravity: false
+                }
+            );
+        }
+    }
+    
+    function createItemCollectionEffect(x, y) {
+        // Create sparkle effect when collecting items
+        if (typeof Renderer !== 'undefined' && Renderer.addParticleEffect) {
+            Renderer.addParticleEffect(
+                x, y,
+                {
+                    count: 12,
+                    type: 'sparkle',
+                    color: '#ffa',
+                    size: 2,
+                    speedMultiplier: 1.2,
+                    lifeMultiplier: 1.5
+                }
+            );
         }
     }
     
@@ -152,7 +249,17 @@ const Robot = (() => {
                     // Add to inventory
                     robot.inventory.push(itemName);
                     Inventory.updateDisplay(robot.inventory);
+                    
+                    // Create item collection effect
+                    const worldX = robot.digX * World.TILE_SIZE - World.worldOffset;
+                    const worldY = robot.digY * World.TILE_SIZE;
+                    createItemCollectionEffect(worldX + World.TILE_SIZE / 2, worldY + World.TILE_SIZE / 2);
                 }
+                
+                // Create debris effect
+                const worldX = robot.digX * World.TILE_SIZE - World.worldOffset;
+                const worldY = robot.digY * World.TILE_SIZE;
+                createDebrisEffect(worldX + World.TILE_SIZE / 2, worldY + World.TILE_SIZE / 2);
                 
                 // Convert ground to air (dug out)
                 World.setTile(robot.digX, robot.digY, 'air');
@@ -161,6 +268,22 @@ const Robot = (() => {
                 robot.isDigging = false;
                 robot.digProgress = 0;
             }
+        }
+    }
+    
+    function createDebrisEffect(x, y) {
+        // Create debris particles when finishing digging
+        if (typeof Renderer !== 'undefined' && Renderer.addParticleEffect) {
+            Renderer.addParticleEffect(
+                x, y,
+                {
+                    count: 15,
+                    color: '#a96',
+                    size: 3,
+                    speedMultiplier: 1.5,
+                    gravity: true
+                }
+            );
         }
     }
     
@@ -184,6 +307,11 @@ const Robot = (() => {
                     let distance = floorY - feetY;
                     
                     if (distance >= 0 && distance <= 10) {
+                        // Check if just landed from a jump
+                        if (!robot.isGrounded && robot.vy > 2 && !lastGroundedState) {
+                            createLandingEffect();
+                        }
+                        
                         robot.isGrounded = true;
                         robot.isJumping = false;
                         robot.vy = 0;
@@ -216,6 +344,12 @@ const Robot = (() => {
                         // Collision from the bottom
                         robot.y = y * World.TILE_SIZE - robot.height;
                         robot.vy = 0;
+                        
+                        // Check if just landed
+                        if (!robot.isGrounded && !lastGroundedState) {
+                            createLandingEffect();
+                        }
+                        
                         robot.isGrounded = true;
                         robot.isJumping = false;
                     } else if (minOverlap === overlapLeft && robot.vx < 0) {
@@ -233,6 +367,9 @@ const Robot = (() => {
     }
     
     function update(canvasWidth, canvasHeight) {
+        // Store previous grounded state for visual effects
+        lastGroundedState = robot.isGrounded;
+        
         // AI decision making
         updateAI();
         
@@ -270,8 +407,29 @@ const Robot = (() => {
             if (robot.y > canvasHeight - robot.height) {
                 robot.y = canvasHeight - robot.height;
                 robot.vy = 0;
+                
+                // Check if just landed
+                if (!robot.isGrounded && !lastGroundedState) {
+                    createLandingEffect();
+                }
+                
                 robot.isGrounded = true;
                 robot.isJumping = false;
+            }
+            
+            // Add occasional trail particles during major falls
+            if (robot.vy > 7 && Math.random() < 0.2 && typeof Renderer !== 'undefined' && Renderer.addParticleEffect) {
+                Renderer.addParticleEffect(
+                    robot.x + Math.random() * robot.width,
+                    robot.y + robot.height - 5,
+                    {
+                        count: 1,
+                        color: 'rgba(200, 200, 255, 0.3)',
+                        size: 2,
+                        speedMultiplier: 0.2,
+                        gravity: false
+                    }
+                );
             }
         }
         
@@ -291,4 +449,4 @@ const Robot = (() => {
         update,
         get state() { return robot; }
     };
-})(); 
+})();

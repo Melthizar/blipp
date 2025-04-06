@@ -13,7 +13,9 @@ body {
     margin: 20px auto;
     overflow: hidden;
     border: 2px solid #444;
+    border-radius: 8px;
     background-color: #111;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
 }
 
 #game-canvas {
@@ -26,36 +28,87 @@ body {
     position: absolute;
     top: 10px;
     right: 10px;
-    width: 150px;
-    padding: 10px;
+    width: 180px;
+    padding: 12px;
     background-color: rgba(0, 0, 0, 0.7);
     border: 1px solid #444;
+    border-radius: 5px;
     z-index: 100;
+    box-shadow: 0 0 10px rgba(0, 0, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+#inventory-panel:hover {
+    box-shadow: 0 0 15px rgba(0, 150, 255, 0.4);
 }
 
 #inventory-title {
     text-align: center;
     margin-bottom: 10px;
     color: #8ff;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+    border-bottom: 1px solid #444;
+    padding-bottom: 8px;
 }
 
 #inventory-list {
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
+    margin-top: 5px;
+    padding-right: 5px;
+    scrollbar-width: thin;
+    scrollbar-color: #444 #222;
+}
+
+#inventory-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+#inventory-list::-webkit-scrollbar-track {
+    background: #222;
+    border-radius: 3px;
+}
+
+#inventory-list::-webkit-scrollbar-thumb {
+    background-color: #444;
+    border-radius: 3px;
+}
+
+#inventory-list::-webkit-scrollbar-thumb:hover {
+    background-color: #666;
 }
 
 .inventory-item {
-    margin-bottom: 5px;
-    padding: 3px;
-    border-bottom: 1px dotted #444;
+    /* Styles moved to dynamic JavaScript creation */
 }
 
 .game-info {
     position: absolute;
     bottom: 10px;
     left: 10px;
-    background-color: rgba(0,0,0,0.7);
-    padding: 5px;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 10px 15px;
     font-size: 12px;
     color: #aaa;
-} 
+    max-width: 400px;
+    border-radius: 4px;
+    border-left: 3px solid #4af;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 840px) {
+    #game-container {
+        width: 95%;
+        height: auto;
+        aspect-ratio: 4/3;
+    }
+}
+
+@media (max-width: 600px) {
+    #inventory-panel {
+        width: 150px;
+    }
+}
