@@ -1,0 +1,61 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #222;
+    font-family: 'Courier New', monospace;
+    color: #fff;
+}
+
+#game-container {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    margin: 20px auto;
+    overflow: hidden;
+    border: 2px solid #444;
+    background-color: #111;
+}
+
+#game-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+#inventory-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 150px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    border: 1px solid #444;
+    z-index: 100;
+}
+
+#inventory-title {
+    text-align: center;
+    margin-bottom: 10px;
+    color: #8ff;
+}
+
+#inventory-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.inventory-item {
+    margin-bottom: 5px;
+    padding: 3px;
+    border-bottom: 1px dotted #444;
+}
+
+.game-info {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background-color: rgba(0,0,0,0.7);
+    padding: 5px;
+    font-size: 12px;
+    color: #aaa;
+} 

@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pixel Robot Platformer</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #222;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+        }
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            margin: 20px auto;
+            overflow: hidden;
+            border: 2px solid #444;
+            background-color: #111;
+        }
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #inventory-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 150px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 1px solid #444;
+            z-index: 100;
+        }
+        #inventory-title {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #8ff;
+        }
+        #inventory-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .inventory-item {
+            margin-bottom: 5px;
+            padding: 3px;
+            border-bottom: 1px dotted #444;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="inventory-panel">
+            <div id="inventory-title">INVENTORY</div>
+            <div id="inventory-list"></div>
+        </div>
+        <div style="position: absolute; bottom: 10px; left: 10px; background-color: rgba(0,0,0,0.7); padding: 5px; font-size: 12px; color: #aaa;">
+            Robot will randomly move, jump, and dig for items. Watch its inventory grow!
+        </div>
+    </div>
+
+    <script>
+        // Constants and configuration
+        const TILE_SIZE = 32;
+        const GRID_WIDTH = 25;
+        const GRID_HEIGHT = 18;
+        const GRAVITY = 0.5;
+        const ROBOT_SPEED = 2;
+        const JUMP_FORCE = 12;
+        const DIG_DURATION = 60; // frames
+        const ITEM_NAME_PREFIXES = ["Ancient", "Rusty", "Glowing", "Mysterious", "Tiny", "Broken", "Golden", "Crystal", "Dark", "Alien"];
+        const ITEM_NAME_OBJECTS = ["Gear", "Chip", "Circuit", "Battery", "Lens", "Key", "Orb", "Cube", "Shard", "Transmitter"];
+
+        // Game state
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const inventoryList = document.getElementById('inventory-list');
+        
+        canvas.width = GRID_WIDTH * TILE_SIZE;
+        canvas.height = GRID_HEIGHT * TILE_SIZE;
+        
+        let gameWorld = [];
+        let worldOffset = 0;
+        let robot = {
+            x: GRID_WIDTH * TILE_SIZE / 2,
+            y: 0,
+            width: TILE_SIZE - 8,
+            height: TILE_SIZE - 4,
+            vx: 0,
+            vy: 0,
+            isJumping: false,
+            isGrounded: false,
+            isDigging: false,
+            digProgress: 0,
+            digX: 0,
+            digY: 0,
+            digDirection: 0, // 0: down, -1: left, 1: right
+            direction: 1, // 1 for right, -1 for left
+            actionTimer: 0,
+            inventory: []
+        };
+
+        // Initialize world
+        function initWorld() {
+            for (let x = 0; x < GRID_WIDTH * 3; x++) {
+                gameWorld[x] = [];
+                for (let y = 0; y < GRID_HEIGHT; y++) {
+                    // Base solid layer at bottom of screen
+                    if (y === GRID_HEIGHT - 1) {
+                        gameWorld[x][y] = {
+                            type: 'bedrock',
+                            hasItem: false
+                        };
+                    }
+                    // Ground level
+                    else if (y >= GRID_HEIGHT - 4) {
+                        // Create uneven terrain
+                        let noise = Math.sin(x * 0.2) * 2;
+                        if (y >= GRID_HEIGHT - 4 + Math.floor(noise)) {
+                            gameWorld[x][y] = {
+                                type: 'ground',
+                                hasItem: Math.random() < 0.3
+                            };
+                        } else {
+                            gameWorld[x][y] = { type: 'air' };
+                        }
+                    } else if (y >= GRID_HEIGHT - 8 && Math.random() < 0.1) {
+                        // Random platforms
+                        gameWorld[x][y] = { 
+                            type: 'ground',
+                            hasItem: Math.random() < 0.2
+                        };
+                    } else {
+                        gameWorld[x][y] = { type: 'air' };
+                    }
+                }
+            }
+        }
+
+        function extendWorld() {
+            // Add more world to the right
+            let startX = gameWorld.length;
+            let endX = startX + GRID_WIDTH;
+            
+            for (let x = startX; x < endX; x++) {
+                gameWorld[x] = [];
+                for (let y = 0; y < GRID_HEIGHT; y++) {
+                    // Base solid layer at bottom of screen
+                    if (y === GRID_HEIGHT - 1) {
+                        gameWorld[x][y] = {
+                            type: 'bedrock',
+                            hasItem: false
+                        };
+                    }
+                    // Ground level
+                    else if (y >= GRID_HEIGHT - 4) {
+                        // Create uneven terrain
+                        let noise = Math.sin(x * 0.2) * 2;
+                        if (y >= GRID_HEIGHT - 4 + Math.floor(noise)) {
+                            gameWorld[x][y] = {
+                                type: 'ground',
+                                hasItem: Math.random() < 0.3
+                            };
+                        } else {
+                            gameWorld[x][y] = { type: 'air' };
+                        }
+                    } else if (y >= GRID_HEIGHT - 8 && Math.random() < 0.1) {
+                        // Random platforms
+                        gameWorld[x][y] = { 
+                            type: 'ground',
+                            hasItem: Math.random() < 0.2
+                        };
+                    } else {
+                        gameWorld[x][y] = { type: 'air' };
+                    }
+                }
+            }
+        }
+
+        // Robot AI decisions
+        function updateRobotAI() {
+            // Only make decisions when not currently digging
+            if (!robot.isDigging) {
+                if (robot.actionTimer <= 0) {
+                    // Make a new decision
+                    let decision = Math.random();
+                    
+                    if (decision < 0.4) {
+                        // Move left or right
+                        robot.vx = ROBOT_SPEED * (Math.random() > 0.5 ? 1 : -1);
+                        robot.direction = robot.vx > 0 ? 1 : -1;
+                        robot.actionTimer = Math.floor(Math.random() * 60) + 30;
+                    } else if (decision < 0.7 && robot.isGrounded) {
+                        // Jump - sometimes with direction
+                        robot.vy = -JUMP_FORCE;
+                        
+                        // 60% chance to jump with horizontal direction
+                        let jumpDirection = Math.random();
+                        if (jumpDirection < 0.6) {
+                            // Jump left or right
+                            robot.vx = ROBOT_SPEED * 1.5 * (jumpDirection < 0.3 ? -1 : 1);
+                            robot.direction = robot.vx > 0 ? 1 : -1;
+                        } else {
+                            // Jump straight up
+                            robot.vx = 0;
+                        }
+                        
+                        robot.isJumping = true;
+                        robot.isGrounded = false;
+                        robot.actionTimer = 20;
+                    } else if (decision < 0.9) {
+                        // Try to dig - now can dig even when not grounded
+                        tryDig();
+                        robot.actionTimer = 10;
+                    } else {
+                        // Stand still
+                        robot.vx = 0;
+                        robot.actionTimer = Math.floor(Math.random() * 30) + 15;
+                    }
+                } else {
+                    robot.actionTimer--;
+                }
+            }
+        }
+
+        function tryDig() {
+            // Allow digging even when jumping or falling
+            
+            // Get robot's position in grid coordinates
+            let robotGridX = Math.floor((robot.x + worldOffset) / TILE_SIZE);
+            let robotGridY = Math.floor((robot.y + robot.height - robot.height/2) / TILE_SIZE);
+            
+            // Decide dig direction (left, right, up, down)
+            let digDirectionDecision = Math.random();
+            let digX = robotGridX;
+            let digY = robotGridY;
+            let canDig = false;
+            
+            if (digDirectionDecision < 0.25) {
+                // Try to dig left
+                if (robotGridX - 1 >= 0 && 
+                    gameWorld[robotGridX - 1][robotGridY].type === 'ground') {
+                    digX = robotGridX - 1;
+                    canDig = true;
+                    robot.direction = -1;
+                    robot.digDirection = -1; // Left
+                }
+            } else if (digDirectionDecision < 0.5) {
+                // Try to dig right
+                if (robotGridX + 1 < gameWorld.length && 
+                    gameWorld[robotGridX + 1][robotGridY].type === 'ground') {
+                    digX = robotGridX + 1;
+                    canDig = true;
+                    robot.direction = 1;
+                    robot.digDirection = 1; // Right
+                }
+            } else if (digDirectionDecision < 0.75) {
+                // Try to dig down
+                if (robotGridY + 1 < GRID_HEIGHT && 
+                    gameWorld[robotGridX][robotGridY + 1].type === 'ground') {
+                    digY = robotGridY + 1;
+                    canDig = true;
+                    robot.digDirection = 2; // Down
+                }
+            } else {
+                // Try to dig up
+                if (robotGridY - 1 >= 0 && 
+                    gameWorld[robotGridX][robotGridY - 1].type === 'ground') {
+                    digY = robotGridY - 1;
+                    canDig = true;
+                    robot.digDirection = 3; // Up
+                }
+            }
+            
+            // Start digging if a valid tile was found
+            if (canDig) {
+                robot.isDigging = true;
+                robot.digProgress = 0;
+                robot.digX = digX;
+                robot.digY = digY;
+                robot.vx = 0;
+                robot.vy = 0; // Stop any vertical movement too
+            }
+        }
+
+        function updateDigging() {
+            if (robot.isDigging) {
+                robot.digProgress++;
+                
+                if (robot.digProgress >= DIG_DURATION) {
+                    // Digging completed
+                    let dugTile = gameWorld[robot.digX][robot.digY];
+                    
+                    if (dugTile.hasItem) {
+                        // Found an item!
+                        let prefix = ITEM_NAME_PREFIXES[Math.floor(Math.random() * ITEM_NAME_PREFIXES.length)];
+                        let object = ITEM_NAME_OBJECTS[Math.floor(Math.random() * ITEM_NAME_OBJECTS.length)];
+                        let itemName = `${prefix} ${object}`;
+                        
+                        // Add to inventory
+                        robot.inventory.push(itemName);
+                        updateInventoryDisplay();
+                        
+                        // Remove the item from the tile
+                        dugTile.hasItem = false;
+                    }
+                    
+                    // Convert ground to air (dug out)
+                    gameWorld[robot.digX][robot.digY] = { type: 'air' };
+                    
+                    // Reset digging state
+                    robot.isDigging = false;
+                    robot.digProgress = 0;
+                }
+            }
+        }
+
+        function updateInventoryDisplay() {
+            // Clear current inventory display
+            inventoryList.innerHTML = '';
+            
+            // Add each item
+            robot.inventory.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'inventory-item';
+                itemElement.textContent = item;
+                inventoryList.appendChild(itemElement);
+            });
+        }
+
+        function update() {
+            // AI decision making
+            updateRobotAI();
+            
+            // Update digging progress if digging
+            updateDigging();
+            
+            if (!robot.isDigging) {
+                // Apply gravity
+                robot.vy += GRAVITY;
+                
+                // Cap falling speed
+                if (robot.vy > 15) robot.vy = 15;
+                
+                // Apply velocity
+                robot.x += robot.vx;
+                robot.y += robot.vy;
+                
+                // World bounds
+                if (robot.x < 0 && worldOffset <= 0) {
+                    robot.x = 0;
+                    robot.vx = 0;
+                } else if (robot.x < 0 && worldOffset > 0) {
+                    robot.x = 0;
+                }
+                
+                if (robot.x > canvas.width - robot.width) {
+                    robot.x = canvas.width - robot.width;
+                    robot.vx = 0;
+                }
+                
+                // Check collision with the world
+                checkCollisions();
+                
+                // Prevent falling through the bottom of the screen
+                if (robot.y > canvas.height - robot.height) {
+                    robot.y = canvas.height - robot.height;
+                    robot.vy = 0;
+                    robot.isGrounded = true;
+                    robot.isJumping = false;
+                }
+            }
+            
+            // Scroll the world when robot approaches the edge
+            handleWorldScrolling();
+        }
+
+        function checkCollisions() {
+            robot.isGrounded = false;
+            
+            // Get the grid positions the robot is occupying
+            let robotLeft = Math.floor((robot.x + worldOffset) / TILE_SIZE);
+            let robotRight = Math.floor((robot.x + robot.width - 1 + worldOffset) / TILE_SIZE);
+            let robotTop = Math.floor(robot.y / TILE_SIZE);
+            let robotBottom = Math.floor((robot.y + robot.height - 1) / TILE_SIZE);
+            
+            // Check for floor collision (robot's feet)
+            let checkingFloor = robotBottom + 1;
+            if (checkingFloor < GRID_HEIGHT) {
+                for (let x = robotLeft; x <= robotRight; x++) {
+                    if (x >= 0 && x < gameWorld.length) {
+                        if (gameWorld[x][checkingFloor].type === 'ground' || 
+                            gameWorld[x][checkingFloor].type === 'bedrock') {
+                            let feetY = robot.y + robot.height;
+                            let floorY = checkingFloor * TILE_SIZE;
+                            let distance = floorY - feetY;
+                            
+                            if (distance >= 0 && distance <= 10) {
+                                robot.isGrounded = true;
+                                robot.isJumping = false;
+                                robot.vy = 0;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Traditional collision checking
+            for (let y = robotTop; y <= robotBottom; y++) {
+                for (let x = robotLeft; x <= robotRight; x++) {
+                    if (x >= 0 && x < gameWorld.length && y >= 0 && y < GRID_HEIGHT) {
+                        if (gameWorld[x][y].type === 'ground' || gameWorld[x][y].type === 'bedrock') {
+                            // Calculate the overlaps on each side
+                            let overlapLeft = (x + 1) * TILE_SIZE - worldOffset - robot.x;
+                            let overlapRight = robot.x + robot.width - x * TILE_SIZE + worldOffset;
+                            let overlapTop = (y + 1) * TILE_SIZE - robot.y;
+                            let overlapBottom = robot.y + robot.height - y * TILE_SIZE;
+                            
+                            // Find the smallest overlap
+                            let minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+                            
+                            // Resolve the collision based on the smallest overlap
+                            if (minOverlap === overlapTop && robot.vy < 0) {
+                                // Collision from the top
+                                robot.y = (y + 1) * TILE_SIZE;
+                                robot.vy = 0;
+                            } else if (minOverlap === overlapBottom && robot.vy > 0) {
+                                // Collision from the bottom
+                                robot.y = y * TILE_SIZE - robot.height;
+                                robot.vy = 0;
+                                robot.isGrounded = true;
+                                robot.isJumping = false;
+                            } else if (minOverlap === overlapLeft && robot.vx < 0) {
+                                // Collision from the left
+                                robot.x = (x + 1) * TILE_SIZE - worldOffset;
+                                robot.vx = 0;
+                            } else if (minOverlap === overlapRight && robot.vx > 0) {
+                                // Collision from the right
+                                robot.x = x * TILE_SIZE - robot.width + worldOffset;
+                                robot.vx = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function handleWorldScrolling() {
+            // Scroll the world when robot approaches the edge
+            if (robot.x > canvas.width * 0.7) {
+                // Generate new world if needed
+                if (worldOffset + canvas.width > (gameWorld.length - GRID_WIDTH) * TILE_SIZE) {
+                    extendWorld();
+                }
+                
+                // Move the world left
+                worldOffset += 4;
+                robot.x -= 4;
+            } else if (robot.x < canvas.width * 0.3 && worldOffset > 0) {
+                // Move the world right
+                worldOffset -= 4;
+                robot.x += 4;
+            }
+            
+            // Make sure robot stays visible when going left
+            if (robot.x < 20 && robot.vx < 0 && worldOffset <= 0) {
+                robot.x = 20;
+            }
+        }
+
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#004';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background stars
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 100; i++) {
+                let starX = (i * 19) % canvas.width;
+                let starY = (i * 17) % canvas.height;
+                let starSize = (i % 3) + 1;
+                ctx.fillRect(starX, starY, starSize, starSize);
+            }
+            
+            // Draw the world
+            for (let x = 0; x < GRID_WIDTH + 1; x++) {
+                for (let y = 0; y < GRID_HEIGHT; y++) {
+                    let worldX = Math.floor(worldOffset / TILE_SIZE) + x;
+                    
+                    if (worldX >= 0 && worldX < gameWorld.length) {
+                        let tile = gameWorld[worldX][y];
+                        let drawX = x * TILE_SIZE - (worldOffset % TILE_SIZE);
+                        
+                        if (tile.type === 'ground') {
+                            // Ground tile
+                            ctx.fillStyle = '#553';
+                            ctx.fillRect(drawX, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                            
+                            // Top edge of ground
+                            ctx.fillStyle = '#774';
+                            ctx.fillRect(drawX, y * TILE_SIZE, TILE_SIZE, 4);
+                            
+                            // Item indicator
+                            if (tile.hasItem) {
+                                ctx.fillStyle = '#ff8';
+                                ctx.fillRect(drawX + TILE_SIZE / 2 - 1, y * TILE_SIZE + TILE_SIZE / 2 - 1, 3, 3);
+                            }
+                        } else if (tile.type === 'bedrock') {
+                            // Bedrock tile
+                            ctx.fillStyle = '#333';
+                            ctx.fillRect(drawX, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                            
+                            // Texture
+                            ctx.fillStyle = '#222';
+                            for (let i = 0; i < 4; i++) {
+                                let dotX = drawX + (i * 8) + 4;
+                                let dotY = y * TILE_SIZE + (i % 2) * 8 + 12;
+                                ctx.fillRect(dotX, dotY, 4, 4);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Draw the robot
+            if (robot.isDigging) {
+                // Draw digging animation
+                let digX = robot.digX * TILE_SIZE - worldOffset;
+                let digY = robot.digY * TILE_SIZE;
+                let robotX, robotY;
+                
+                // Position robot based on dig direction
+                if (robot.digDirection === -1) {
+                    // Digging to the left
+                    robotX = digX + TILE_SIZE + 4;
+                    robotY = digY - robot.height + 8;
+                } else if (robot.digDirection === 1) {
+                    // Digging to the right
+                    robotX = digX - robot.width - 4;
+                    robotY = digY - robot.height + 8;
+                } else if (robot.digDirection === 2) {
+                    // Digging down
+                    robotX = digX - 4;
+                    robotY = digY - robot.height;
+                } else if (robot.digDirection === 3) {
+                    // Digging up
+                    robotX = digX - 4;
+                    robotY = digY + TILE_SIZE;
+                }
+                
+                // Robot body while digging
+                ctx.fillStyle = '#888';
+                ctx.fillRect(robotX, robotY, robot.width, robot.height - 8);
+                
+                // Robot head
+                ctx.fillStyle = '#aaa';
+                ctx.fillRect(robotX + 2, robotY - 6, robot.width - 4, 8);
+                
+                // Robot eyes
+                ctx.fillStyle = '#0ff';
+                if (robot.direction > 0) {
+                    ctx.fillRect(robotX + robot.width - 7, robotY - 4, 2, 4);
+                    ctx.fillRect(robotX + robot.width - 12, robotY - 4, 2, 4);
+                } else {
+                    ctx.fillRect(robotX + 5, robotY - 4, 2, 4);
+                    ctx.fillRect(robotX + 10, robotY - 4, 2, 4);
+                }
+                
+                // Robot arm extended for digging
+                ctx.fillStyle = '#666';
+                if (robot.digDirection === -1) {
+                    // Arm extended left
+                    ctx.fillRect(robotX - 12, robotY + 8, 12, 4);
+                } else if (robot.digDirection === 1) {
+                    // Arm extended right
+                    ctx.fillRect(robotX + robot.width, robotY + 8, 12, 4);
+                } else if (robot.digDirection === 2) {
+                    // Arms down for digging below
+                    ctx.fillRect(robotX + 4, robotY + robot.height - 6, 4, 12);
+                    ctx.fillRect(robotX + robot.width - 8, robotY + robot.height - 6, 4, 12);
+                } else if (robot.digDirection === 3) {
+                    // Arms up for digging above
+                    ctx.fillRect(robotX + 4, robotY - 10, 4, 12);
+                    ctx.fillRect(robotX + robot.width - 8, robotY - 10, 4, 12);
+                }
+                
+                // Digging effect - particles
+                ctx.fillStyle = '#a96';
+                for (let i = 0; i < 5; i++) {
+                    let particleX, particleY;
+                    
+                    if (robot.digDirection === -1) {
+                        // Left particles
+                        particleX = digX + TILE_SIZE/2 + (Math.sin(robot.digProgress * 0.2 + i) * 8);
+                        particleY = digY + TILE_SIZE/2 + (Math.cos(robot.digProgress * 0.3 + i) * 8);
+                    } else if (robot.digDirection === 1) {
+                        // Right particles
+                        particleX = digX + TILE_SIZE/2 - (Math.sin(robot.digProgress * 0.2 + i) * 8);
+                        particleY = digY + TILE_SIZE/2 + (Math.cos(robot.digProgress * 0.3 + i) * 8);
+                    } else if (robot.digDirection === 2) {
+                        // Down particles
+                        particleX = digX + TILE_SIZE/2 + (Math.sin(robot.digProgress * 0.2 + i) * 10);
+                        particleY = digY + (Math.cos(robot.digProgress * 0.3 + i) * 6);
+                    } else if (robot.digDirection === 3) {
+                        // Up particles
+                        particleX = digX + TILE_SIZE/2 + (Math.sin(robot.digProgress * 0.2 + i) * 10);
+                        particleY = digY + TILE_SIZE - (Math.cos(robot.digProgress * 0.3 + i) * 6);
+                    }
+                    
+                    ctx.fillRect(particleX, particleY, 3, 3);
+                }
+                
+                // Digging progress indicator
+                ctx.fillStyle = '#0f8';
+                ctx.fillRect(robotX, robotY - 12, (robot.digProgress / DIG_DURATION) * TILE_SIZE, 3);
+            } else {
+                // Regular robot drawing
+                
+                // Robot body
+                ctx.fillStyle = '#888';
+                ctx.fillRect(robot.x, robot.y, robot.width, robot.height);
+                
+                // Robot head
+                ctx.fillStyle = '#aaa';
+                ctx.fillRect(robot.x + 2, robot.y - 6, robot.width - 4, 8);
+                
+                // Robot eyes (direction sensitive)
+                ctx.fillStyle = '#0ff';
+                if (robot.direction > 0) {
+                    ctx.fillRect(robot.x + robot.width - 7, robot.y - 4, 2, 4);
+                    ctx.fillRect(robot.x + robot.width - 12, robot.y - 4, 2, 4);
+                } else {
+                    ctx.fillRect(robot.x + 5, robot.y - 4, 2, 4);
+                    ctx.fillRect(robot.x + 10, robot.y - 4, 2, 4);
+                }
+                
+                // Robot legs
+                ctx.fillStyle = '#666';
+                ctx.fillRect(robot.x + 4, robot.y + robot.height - 6, 4, 8);
+                ctx.fillRect(robot.x + robot.width - 8, robot.y + robot.height - 6, 4, 8);
+            }
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize the game
+        initWorld();
+        gameLoop();
+    </script>
+</body>
+</html>
