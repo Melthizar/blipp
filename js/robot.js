@@ -223,37 +223,45 @@ const Robot = (() => {
         
         if (digDirectionDecision < 0.25) {
             // Try to dig left
-            if (robotGridX - 1 >= 0 && 
-                World.getTile(robotGridX - 1, robotGridY)?.type === 'ground') {
-                digX = robotGridX - 1;
-                canDig = true;
-                robot.direction = -1;
-                robot.digDirection = -1; // Left
+            if (robotGridX - 1 >= 0) {
+                let tile = World.getTile(robotGridX - 1, robotGridY);
+                if (tile && (tile.type === 'ground' || tile.type === 'pocket')) {
+                    digX = robotGridX - 1;
+                    canDig = true;
+                    robot.direction = -1;
+                    robot.digDirection = -1; // Left
+                }
             }
         } else if (digDirectionDecision < 0.5) {
             // Try to dig right
-            if (robotGridX + 1 < World.gameWorld.length && 
-                World.getTile(robotGridX + 1, robotGridY)?.type === 'ground') {
-                digX = robotGridX + 1;
-                canDig = true;
-                robot.direction = 1;
-                robot.digDirection = 1; // Right
+            if (robotGridX + 1 < World.gameWorld.length) {
+                let tile = World.getTile(robotGridX + 1, robotGridY);
+                if (tile && (tile.type === 'ground' || tile.type === 'pocket')) {
+                    digX = robotGridX + 1;
+                    canDig = true;
+                    robot.direction = 1;
+                    robot.digDirection = 1; // Right
+                }
             }
         } else if (digDirectionDecision < 0.75) {
             // Try to dig down
-            if (robotGridY + 1 < World.GRID_HEIGHT && 
-                World.getTile(robotGridX, robotGridY + 1)?.type === 'ground') {
-                digY = robotGridY + 1;
-                canDig = true;
-                robot.digDirection = 2; // Down
+            if (robotGridY + 1 < World.GRID_HEIGHT) {
+                let tile = World.getTile(robotGridX, robotGridY + 1);
+                if (tile && (tile.type === 'ground' || tile.type === 'pocket')) {
+                    digY = robotGridY + 1;
+                    canDig = true;
+                    robot.digDirection = 2; // Down
+                }
             }
         } else {
             // Try to dig up
-            if (robotGridY - 1 >= 0 && 
-                World.getTile(robotGridX, robotGridY - 1)?.type === 'ground') {
-                digY = robotGridY - 1;
-                canDig = true;
-                robot.digDirection = 3; // Up
+            if (robotGridY - 1 >= 0) {
+                let tile = World.getTile(robotGridX, robotGridY - 1);
+                if (tile && (tile.type === 'ground' || tile.type === 'pocket')) {
+                    digY = robotGridY - 1;
+                    canDig = true;
+                    robot.digDirection = 3; // Up
+                }
             }
         }
         
@@ -337,12 +345,12 @@ const Robot = (() => {
         for (let y = robotTop; y <= robotBottom; y++) {
             for (let x = robotLeft; x <= robotRight; x++) {
                 let tile = World.getTile(x, y);
-                if (tile && (tile.type === 'ground' || tile.type === 'bedrock')) {
+                if (tile && (tile.type === 'ground' || tile.type === 'bedrock' || tile.type === 'pocket')) {
                     isColliding = true;
                     
                     // Calculate horizontal overlaps
                     let overlapLeft = (x + 1) * World.TILE_SIZE - World.worldOffset - robot.x;
-                    let overlapRight = robot.x + robot.width - x * World.TILE_SIZE + World.worldOffset;
+                    let overlapRight = robot.x + robot.width - (x * World.TILE_SIZE - World.worldOffset);
                     
                     // Determine which side has the smallest overlap
                     if (overlapLeft < overlapRight && robot.vx <= 0) {
@@ -351,7 +359,7 @@ const Robot = (() => {
                         robot.vx = 0;
                     } else if (overlapRight <= overlapLeft && robot.vx >= 0) {
                         // Collision from the right
-                        robot.x = x * World.TILE_SIZE - robot.width + World.worldOffset;
+                        robot.x = (x * World.TILE_SIZE - World.worldOffset) - robot.width;
                         robot.vx = 0;
                     }
                 }
@@ -382,7 +390,7 @@ const Robot = (() => {
         if (checkingFloor < World.GRID_HEIGHT) {
             for (let x = robotLeft; x <= robotRight; x++) {
                 let tile = World.getTile(x, checkingFloor);
-                if (tile && (tile.type === 'ground' || tile.type === 'bedrock')) {
+                if (tile && (tile.type === 'ground' || tile.type === 'bedrock' || tile.type === 'pocket')) {
                     let feetY = robot.y + robot.height;
                     let floorY = checkingFloor * World.TILE_SIZE;
                     let distance = floorY - feetY;
@@ -411,7 +419,7 @@ const Robot = (() => {
         for (let y = robotTop; y <= robotBottom; y++) {
             for (let x = robotLeft; x <= robotRight; x++) {
                 let tile = World.getTile(x, y);
-                if (tile && (tile.type === 'ground' || tile.type === 'bedrock')) {
+                if (tile && (tile.type === 'ground' || tile.type === 'bedrock' || tile.type === 'pocket')) {
                     isColliding = true;
                     
                     // Calculate vertical overlaps

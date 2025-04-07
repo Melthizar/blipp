@@ -1,35 +1,61 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Pixel Robot Platformer</title>
-    <link rel="stylesheet" href="css/styles.css">
+    <title>Pixel Robot Platformer - Launcher</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <script>
+        // Clear any cached versions by forcing a timestamp parameter
+        window.onload = function() {
+            // Add timestamp to prevent caching
+            const timestamp = new Date().getTime();
+            // Redirect to the game with cache-busting parameter
+            window.location.href = "blipp.html?v=" + timestamp;
+        }
+    </script>
+    <style>
+        body {
+            background-color: #222;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #loading {
+            text-align: center;
+        }
+        h1 {
+            color: #0ff;
+        }
+        .dots {
+            font-size: 24px;
+            animation: dots 1.5s infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+    </style>
 </head>
 <body>
-    <div id="game-container">
-        <canvas id="game-canvas"></canvas>
-        <div id="inventory-panel">
-            <div id="inventory-header">
-                <div id="inventory-title">INVENTORY</div>
-                <div id="inventory-count">0 items</div>
-                <div id="inventory-toggle">▼</div>
-            </div>
-            <div id="latest-item">
-                <div class="latest-item-label">Latest Find:</div>
-                <div class="latest-item-content">Nothing found yet</div>
-            </div>
-            <div id="inventory-list" class="collapsed"></div>
-        </div>
-        <div class="game-info">
-            Robot will randomly move, jump, and dig for items. Watch its inventory grow!
-        </div>
+    <div id="loading">
+        <h1>Pixel Robot Platformer</h1>
+        <p>Loading game<span class="dots" id="loadingDots"></span></p>
     </div>
 
-    <!-- Script modules -->
-    <script src="js/inventory.js"></script>
-    <script src="js/world.js"></script>
-    <script src="js/robot.js"></script>
-    <script src="js/renderer.js"></script>
-    <script src="js/main.js"></script>
-
+    <script>
+        // Animation for the loading dots
+        const loadingDots = document.getElementById('loadingDots');
+        let dots = '';
+        setInterval(() => {
+            dots = dots.length < 3 ? dots + '.' : '';
+            loadingDots.textContent = dots;
+        }, 500);
+    </script>
 </body>
 </html> 

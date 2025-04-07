@@ -175,17 +175,21 @@ const Renderer = (() => {
                     let drawX = x * World.TILE_SIZE - (World.worldOffset % World.TILE_SIZE);
                     
                     if (tile.type === 'ground') {
-                        // Solid ground color with minimal variation based on depth
-                        // Deeper ground is slightly darker
-                        const depthFactor = Math.min(1, y / 15); // Normalize depth effect
+                        // Use the layer color if defined, otherwise fall back to default
+                        const tileColor = tile.color || '#553';
                         
-                        // More solid ground color - brown/tan
-                        ctx.fillStyle = `rgb(150, 120, 90)`;
+                        // Apply the tile color
+                        ctx.fillStyle = tileColor;
                         ctx.fillRect(drawX, y * World.TILE_SIZE, World.TILE_SIZE, World.TILE_SIZE);
                         
-                        // Top edge highlight
-                        ctx.fillStyle = `rgb(170, 140, 100)`;
-                        ctx.fillRect(drawX, y * World.TILE_SIZE, World.TILE_SIZE, 4);
+                        // Add a subtle highlight on top
+                        const r = parseInt(tileColor.substr(1, 2), 16);
+                        const g = parseInt(tileColor.substr(3, 2), 16);
+                        const b = parseInt(tileColor.substr(5, 2), 16);
+                        
+                        // Lighten the color for the top edge
+                        ctx.fillStyle = `rgb(${Math.min(255, r+30)}, ${Math.min(255, g+30)}, ${Math.min(255, b+30)})`;
+                        ctx.fillRect(drawX, y * World.TILE_SIZE, World.TILE_SIZE, 3);
                         
                         // Item indicator with glow effect
                         if (tile.hasItem) {
@@ -224,6 +228,72 @@ const Renderer = (() => {
                                 );
                             }
                         }
+                    } else if (tile.type === 'pocket') {
+                        // Draw special pocket material
+                        ctx.fillStyle = tile.color || '#0af';
+                        ctx.fillRect(drawX, y * World.TILE_SIZE, World.TILE_SIZE, World.TILE_SIZE);
+                        
+                        // Add a pulsing glow effect
+                        const pulseTime = Date.now() * 0.002;
+                        const pulseIntensity = Math.sin(pulseTime) * 0.2 + 0.8;
+                        
+                        // Draw some shiny spots in the pocket
+                        ctx.fillStyle = `rgba(255, 255, 255, ${pulseIntensity * 0.5})`;
+                        
+                        // Different pattern for different pocket types
+                        const patternOffset = (worldX + y) % 3;
+                        
+                        for (let i = 0; i < 3; i++) {
+                            const dotX = drawX + 5 + (i * 10) + patternOffset;
+                            const dotY = y * World.TILE_SIZE + 8 + ((i + patternOffset) % 3) * 8;
+                            const dotSize = 2 + Math.sin(pulseTime + i) * 1;
+                            
+                            ctx.beginPath();
+                            ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        
+                        // Item indicator with special effect
+                        if (tile.hasItem) {
+                            // Draw a bright glowing center
+                            const glowTime = Date.now() * 0.004;
+                            const glowSize = 5 + Math.sin(glowTime) * 2;
+                            
+                            // Outer glow
+                            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                            ctx.beginPath();
+                            ctx.arc(
+                                drawX + World.TILE_SIZE / 2, 
+                                y * World.TILE_SIZE + World.TILE_SIZE / 2, 
+                                glowSize, 0, Math.PI * 2
+                            );
+                            ctx.fill();
+                            
+                            // Inner glow
+                            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                            ctx.beginPath();
+                            ctx.arc(
+                                drawX + World.TILE_SIZE / 2, 
+                                y * World.TILE_SIZE + World.TILE_SIZE / 2, 
+                                glowSize / 2, 0, Math.PI * 2
+                            );
+                            ctx.fill();
+                            
+                            // More frequent particles for special pockets
+                            if (Math.random() < 0.1) {
+                                addParticleEffect(
+                                    drawX + World.TILE_SIZE / 2,
+                                    y * World.TILE_SIZE + World.TILE_SIZE / 2,
+                                    { 
+                                        count: 1, 
+                                        type: 'sparkle', 
+                                        color: '#fff', 
+                                        speedMultiplier: 0.4,
+                                        lifeMultiplier: 1.2
+                                    }
+                                );
+                            }
+                        }
                     } else if (tile.type === 'bedrock') {
                         // Solid bedrock color - dark gray/blue
                         ctx.fillStyle = '#2a2a33';
@@ -232,9 +302,18 @@ const Renderer = (() => {
                         // Simple highlight pattern
                         ctx.fillStyle = '#353540';
                         
-                        // Add a simple pattern of lines instead of random dots
-                        ctx.fillRect(drawX + 2, y * World.TILE_SIZE + 5, World.TILE_SIZE - 4, 2);
-                        ctx.fillRect(drawX + 5, y * World.TILE_SIZE + 12, World.TILE_SIZE - 10, 3);
+                        // Add a more interesting pattern 
+                        for (let i = 0; i < 3; i++) {
+                            for (let j = 0; j < 3; j++) {
+                                if ((i + j) % 2 === (worldX + y) % 2) {
+                                    ctx.fillRect(
+                                        drawX + i * 10 + 2, 
+                                        y * World.TILE_SIZE + j * 10 + 2, 
+                                        6, 6
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
             }

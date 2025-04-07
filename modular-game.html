@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pixel Robot Platformer - Modular Version</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #222;
+            font-family: 'Courier New', monospace;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            padding: 0;
+        }
+        .main-container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        #game-container {
+            position: relative;
+            width: 1000px;
+            height: 700px;
+            overflow: hidden;
+            border: 2px solid #444;
+            background-color: #111;
+        }
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #inventory-panel {
+            width: 200px;
+            padding: 15px;
+            background-color: rgba(20, 20, 30, 0.9);
+            border: 1px solid #444;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            height: 700px;
+            display: flex;
+            flex-direction: column;
+        }
+        #inventory-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+        #inventory-title {
+            color: #8ff;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        #inventory-count {
+            font-size: 14px;
+            color: #aaa;
+        }
+        #inventory-toggle {
+            cursor: pointer;
+            color: #8ff;
+        }
+        #latest-item {
+            background-color: rgba(0, 120, 120, 0.2);
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border: 1px dashed #366;
+        }
+        .latest-item-label {
+            color: #8ff;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .latest-item-content {
+            color: #ddd;
+            font-size: 14px;
+        }
+        #inventory-list {
+            flex: 1;
+            overflow-y: auto;
+            transition: max-height 0.3s;
+            padding-right: 5px;
+        }
+        #inventory-list.collapsed {
+            max-height: 0;
+            overflow: hidden;
+        }
+        .inventory-item {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-bottom: 1px dotted #444;
+            font-size: 14px;
+            background-color: rgba(40, 40, 60, 0.6);
+            border-radius: 3px;
+        }
+        .inventory-item:hover {
+            background-color: rgba(60, 60, 80, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div id="game-container">
+            <canvas id="game-canvas"></canvas>
+        </div>
+        
+        <div id="inventory-panel">
+            <div id="inventory-header">
+                <div id="inventory-title">INVENTORY</div>
+                <div id="inventory-count">0 items</div>
+                <div id="inventory-toggle">▼</div>
+            </div>
+            <div id="latest-item">
+                <div class="latest-item-label">Latest Find:</div>
+                <div class="latest-item-content">Nothing found yet</div>
+            </div>
+            <div id="inventory-list" class="collapsed"></div>
+        </div>
+    </div>
+
+    <!-- Script modules - loaded in correct dependency order -->
+    <script src="js/inventory.js"></script>
+    <script src="js/world.js"></script>
+    <script src="js/robot.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html> 
