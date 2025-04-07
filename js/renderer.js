@@ -65,6 +65,9 @@ const Renderer = (() => {
         
         // Draw the robot
         drawRobot();
+        
+        // Draw UI elements (inventory count, jetpack meter)
+        drawUI();
     }
     
     function updateTimeOfDay() {
@@ -415,6 +418,11 @@ const Renderer = (() => {
             );
             ctx.fill();
             
+            // Draw jetpack if not digging
+            if (!robot.isDigging) {
+                drawJetpack(robot);
+            }
+            
             // Robot body with metallic gradient
             const bodyGradient = ctx.createLinearGradient(
                 robot.x, robot.y, 
@@ -516,6 +524,76 @@ const Renderer = (() => {
         }
     }
     
+    // Draw the robot's jetpack
+    function drawJetpack(robot) {
+        // Left jetpack unit
+        const jetpackGradient = ctx.createLinearGradient(
+            robot.x - 3, robot.y + 5,
+            robot.x - 3, robot.y + 20
+        );
+        jetpackGradient.addColorStop(0, '#777');
+        jetpackGradient.addColorStop(0.4, '#555');
+        jetpackGradient.addColorStop(1, '#333');
+        
+        ctx.fillStyle = jetpackGradient;
+        ctx.fillRect(robot.x - 5, robot.y + 5, 6, 15);
+        
+        // Right jetpack unit
+        ctx.fillRect(robot.x + robot.width - 1, robot.y + 5, 6, 15);
+        
+        // Jetpack connector
+        ctx.fillStyle = '#666';
+        ctx.fillRect(robot.x - 2, robot.y + 8, robot.width + 4, 2);
+        
+        // Jetpack nozzles
+        ctx.fillStyle = '#444';
+        ctx.fillRect(robot.x - 4, robot.y + 20, 4, 2);
+        ctx.fillRect(robot.x + robot.width, robot.y + 20, 4, 2);
+        
+        // Draw flames if jetpack is active
+        if (robot.isUsingJetpack && robot.jetpackEnergy > 0) {
+            // Left flame
+            const flameHeight = 4 + Math.random() * 6;
+            const leftFlameGradient = ctx.createLinearGradient(
+                robot.x - 2, robot.y + 22,
+                robot.x - 2, robot.y + 22 + flameHeight
+            );
+            leftFlameGradient.addColorStop(0, 'rgba(255, 200, 30, 0.9)');
+            leftFlameGradient.addColorStop(0.6, 'rgba(255, 100, 30, 0.8)');
+            leftFlameGradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
+            
+            ctx.fillStyle = leftFlameGradient;
+            ctx.fillRect(robot.x - 3, robot.y + 22, 2, flameHeight);
+            
+            // Right flame
+            const rightFlameGradient = ctx.createLinearGradient(
+                robot.x + robot.width + 2, robot.y + 22,
+                robot.x + robot.width + 2, robot.y + 22 + flameHeight
+            );
+            rightFlameGradient.addColorStop(0, 'rgba(255, 200, 30, 0.9)');
+            rightFlameGradient.addColorStop(0.6, 'rgba(255, 100, 30, 0.8)');
+            rightFlameGradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
+            
+            ctx.fillStyle = rightFlameGradient;
+            ctx.fillRect(robot.x + robot.width + 1, robot.y + 22, 2, flameHeight);
+            
+            // Flame glow effect
+            ctx.shadowColor = 'rgba(255, 150, 0, 0.8)';
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = 'rgba(255, 200, 50, 0.7)';
+            
+            ctx.beginPath();
+            ctx.arc(robot.x - 2, robot.y + 22, 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.arc(robot.x + robot.width + 2, robot.y + 22, 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+        }
+    }
+    
     function updateParticles() {
         // Update existing particles
         for (let i = particleEffects.length - 1; i >= 0; i--) {
@@ -583,25 +661,82 @@ const Renderer = (() => {
         const size = options.size || 3;
         const speedMultiplier = options.speedMultiplier || 1;
         const lifeMultiplier = options.lifeMultiplier || 1;
+        const directionY = options.directionY || null;
         
         for (let i = 0; i < particleCount; i++) {
             // Create particle with random velocity
             const angle = Math.random() * Math.PI * 2;
             const speed = (Math.random() * 1.5 + 0.5) * speedMultiplier;
             
+            let vx = Math.cos(angle) * speed;
+            let vy = Math.sin(angle) * speed;
+            
+            // Override vertical direction if specified
+            if (directionY !== null) {
+                vy = Math.abs(vy) * directionY;
+            }
+            
             particleEffects.push({
-                x: x,
-                y: y,
-                vx: Math.cos(angle) * speed,
-                vy: Math.sin(angle) * speed,
+                x,
+                y,
+                vx,
+                vy,
                 size: Math.random() * size + 1,
-                color: color,
+                color,
                 life: Math.random() * 0.5 + 0.5 * lifeMultiplier,
                 fadeSpeed: 0.01 + Math.random() * 0.01,
                 gravity: options.gravity || false,
-                type: type
+                type
             });
         }
+    }
+    
+    // Draw UI elements
+    function drawUI() {
+        // Draw jetpack energy meter
+        const robot = Robot.state;
+        const meterWidth = 50;
+        const meterHeight = 8;
+        const meterX = 20;
+        const meterY = 20;
+        
+        // Background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(meterX - 2, meterY - 2, meterWidth + 4, meterHeight + 4);
+        
+        // Energy level with color gradient based on level
+        const energyPercent = robot.jetpackEnergy / 100;
+        
+        // Change color based on energy level: green -> yellow -> red
+        let energyColor;
+        if (energyPercent > 0.6) {
+            energyColor = `rgb(30, ${Math.floor(155 + 100 * energyPercent)}, 30)`;
+        } else if (energyPercent > 0.3) {
+            energyColor = `rgb(${Math.floor(255 - (energyPercent - 0.3) * 400)}, ${Math.floor(190 + energyPercent * 50)}, 30)`;
+        } else {
+            energyColor = `rgb(255, ${Math.floor(energyPercent * 300)}, 30)`;
+        }
+        
+        // Draw energy bar
+        ctx.fillStyle = energyColor;
+        ctx.fillRect(meterX, meterY, meterWidth * energyPercent, meterHeight);
+        
+        // Add jetpack icon
+        ctx.fillStyle = '#aaa';
+        ctx.fillRect(meterX - 12, meterY - 1, 6, 10);
+        ctx.fillStyle = '#777';
+        ctx.fillRect(meterX - 11, meterY + meterHeight - 2, 4, 2);
+        
+        // Add pulse effect when jetpack is active
+        if (robot.isUsingJetpack) {
+            ctx.fillStyle = `rgba(255, 200, 50, ${0.4 + Math.sin(Date.now() * 0.01) * 0.3})`;
+            ctx.fillRect(meterX, meterY, meterWidth * energyPercent, meterHeight);
+        }
+        
+        // Add "JETPACK" label
+        ctx.fillStyle = 'white';
+        ctx.font = '8px Arial';
+        ctx.fillText('JETPACK', meterX + 3, meterY + meterHeight - 1);
     }
     
     // Public API

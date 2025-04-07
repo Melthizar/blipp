@@ -1,29 +1,29 @@
 // Main game initialization and loop
-(function() {
+window.onload = function() {
     // Initialize game components
-    function initGame() {
-        // Initialize all modules in the correct order
-        Inventory.init();
-        World.init();
-        Renderer.init();
-        Robot.init();
-        
-        // Start the game loop
-        requestAnimationFrame(gameLoop);
-    }
+    World.init();
+    Robot.init();
+    Inventory.init();
+    Renderer.init();
     
-    // Main game loop
+    // Expose Robot state to Renderer
+    Robot.state = Robot.getState();
+    
+    // Start the game loop
+    requestAnimationFrame(gameLoop);
+    
+    // Game loop function
     function gameLoop() {
         // Update game state
         Robot.update(Renderer.canvas.width, Renderer.canvas.height);
         
+        // Make sure Robot state is accessible for rendering
+        Robot.state = Robot.getState();
+        
         // Render the current frame
         Renderer.render();
         
-        // Continue the loop
+        // Request the next frame
         requestAnimationFrame(gameLoop);
     }
-    
-    // Start the game when the page loads
-    window.addEventListener('load', initGame);
-})(); 
+};

@@ -30,6 +30,10 @@ The project has been modularized for better code organization and maintainabilit
 - Robot with AI behavior for movement and digging
 - Inventory system for collected items
 - Infinite world generation with scrolling
+- Jetpack system with energy management and visual effects
+  - Energy bar display
+  - Particle effects for jetpack flames
+  - AI-controlled usage
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
