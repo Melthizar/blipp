@@ -6,6 +6,12 @@ const Robot = (() => {
     const JUMP_FORCE = 12;
     const DIG_DURATION = 60; // frames
     
+    // Jetpack constants
+    const JETPACK_FORCE = 0.4; // Upward force when using jetpack
+    const JETPACK_MAX_ENERGY = 100; // Maximum jetpack energy
+    const JETPACK_USE_RATE = 0.6; // How quickly energy depletes when using
+    const JETPACK_RECHARGE_RATE = 0.2; // How quickly energy recharges when not using
+    
     // Visual state tracking
     let lastGroundedState = false;
     let jumpEffectPlayed = false;
@@ -27,7 +33,10 @@ const Robot = (() => {
         digDirection: 0, // 0: down, -1: left, 1: right
         direction: 1, // 1 for right, -1 for left
         actionTimer: 0,
-        inventory: []
+        inventory: [],
+        // Jetpack properties
+        jetpackEnergy: JETPACK_MAX_ENERGY,
+        isUsingJetpack: false
     };
     
     function init() {
@@ -48,7 +57,7 @@ const Robot = (() => {
                     robot.vx = ROBOT_SPEED * (Math.random() > 0.5 ? 1 : -1);
                     robot.direction = robot.vx > 0 ? 1 : -1;
                     robot.actionTimer = Math.floor(Math.random() * 60) + 30;
-                } else if (decision < 0.7 && robot.isGrounded) {
+                } else if (decision < 0.6 && robot.isGrounded) {
                     // Jump - sometimes with direction
                     robot.vy = -JUMP_FORCE;
                     
@@ -71,6 +80,10 @@ const Robot = (() => {
                     // Add jump visual effect
                     createJumpEffect();
                     
+                } else if (decision < 0.7 && robot.jetpackEnergy > 30) {
+                    // Use jetpack if enough energy
+                    robot.isUsingJetpack = true;
+                    robot.actionTimer = Math.floor(Math.random() * 40) + 20;
                 } else if (decision < 0.9) {
                     // Try to dig - now can dig even when not grounded
                     tryDig();
@@ -79,6 +92,7 @@ const Robot = (() => {
                     // Stand still
                     robot.vx = 0;
                     robot.actionTimer = Math.floor(Math.random() * 30) + 15;
+                    robot.isUsingJetpack = false;
                     
                     // Occasional thinking particle effect when idle
                     if (Math.random() < 0.15) {
@@ -87,6 +101,11 @@ const Robot = (() => {
                 }
             } else {
                 robot.actionTimer--;
+                
+                // Maybe stop using jetpack if energy is too low
+                if (robot.isUsingJetpack && robot.jetpackEnergy < 10 && Math.random() < 0.3) {
+                    robot.isUsingJetpack = false;
+                }
             }
         }
     }
@@ -105,6 +124,57 @@ const Robot = (() => {
                     gravity: false
                 }
             );
+        }
+    }
+    
+    function createJetpackEffect() {
+        if (typeof Renderer !== 'undefined' && Renderer.addParticleEffect) {
+            // Left exhaust
+            Renderer.addParticleEffect(
+                robot.x + 5,
+                robot.y + robot.height - 2,
+                {
+                    count: 2,
+                    color: 'rgba(255, 160, 30, 0.6)',
+                    size: 2 + Math.random() * 2,
+                    speedMultiplier: 1.2,
+                    gravity: false,
+                    lifeMultiplier: 0.7,
+                    directionY: 1 // Force downward direction
+                }
+            );
+            
+            // Right exhaust
+            Renderer.addParticleEffect(
+                robot.x + robot.width - 5,
+                robot.y + robot.height - 2,
+                {
+                    count: 2,
+                    color: 'rgba(255, 160, 30, 0.6)',
+                    size: 2 + Math.random() * 2,
+                    speedMultiplier: 1.2,
+                    gravity: false,
+                    lifeMultiplier: 0.7,
+                    directionY: 1 // Force downward direction
+                }
+            );
+            
+            // Occasional flame burst
+            if (Math.random() < 0.2) {
+                Renderer.addParticleEffect(
+                    robot.x + 5 + Math.random() * (robot.width - 10),
+                    robot.y + robot.height,
+                    {
+                        count: 3,
+                        color: 'rgba(255, 220, 30, 0.7)',
+                        size: 3 + Math.random() * 3,
+                        speedMultiplier: 1.5,
+                        gravity: false,
+                        lifeMultiplier: 0.5,
+                        directionY: 1 // Force downward direction
+                    }
+                );
+            }
         }
     }
     
@@ -246,9 +316,8 @@ const Robot = (() => {
                     // Found an item!
                     let itemName = Inventory.generateItemName();
                     
-                    // Add to inventory
-                    robot.inventory.push(itemName);
-                    Inventory.updateDisplay(robot.inventory);
+                    // Add to inventory using the new method that also updates the database
+                    Inventory.addItem(itemName);
                     
                     // Create item collection effect
                     const worldX = robot.digX * World.TILE_SIZE - World.worldOffset;
@@ -376,9 +445,23 @@ const Robot = (() => {
         // Update digging progress if digging
         updateDigging();
         
+        // Update jetpack energy
+        updateJetpackEnergy();
+        
         if (!robot.isDigging) {
-            // Apply gravity
-            robot.vy += GRAVITY;
+            // Apply jetpack force if using
+            if (robot.isUsingJetpack && robot.jetpackEnergy > 0) {
+                robot.vy -= JETPACK_FORCE;
+                createJetpackEffect();
+                
+                // Cap upward velocity with jetpack
+                if (robot.vy < -4) {
+                    robot.vy = -4;
+                }
+            } else {
+                // Apply gravity
+                robot.vy += GRAVITY;
+            }
             
             // Cap falling speed
             if (robot.vy > 15) robot.vy = 15;
@@ -440,6 +523,29 @@ const Robot = (() => {
         // Make sure robot stays visible when going left
         if (robot.x < 20 && robot.vx < 0 && World.worldOffset <= 0) {
             robot.x = 20;
+        }
+    }
+    
+    // Update jetpack energy
+    function updateJetpackEnergy() {
+        if (robot.isUsingJetpack) {
+            // Deplete energy when using jetpack
+            robot.jetpackEnergy -= JETPACK_USE_RATE;
+            if (robot.jetpackEnergy <= 0) {
+                robot.jetpackEnergy = 0;
+                robot.isUsingJetpack = false; // Force jetpack off when empty
+            }
+        } else if (robot.isGrounded) {
+            // Recharge faster when grounded
+            robot.jetpackEnergy += JETPACK_RECHARGE_RATE * 2;
+        } else {
+            // Recharge slowly when in air but not using jetpack
+            robot.jetpackEnergy += JETPACK_RECHARGE_RATE;
+        }
+        
+        // Cap energy at maximum
+        if (robot.jetpackEnergy > JETPACK_MAX_ENERGY) {
+            robot.jetpackEnergy = JETPACK_MAX_ENERGY;
         }
     }
     

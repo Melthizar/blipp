@@ -252,11 +252,32 @@ const Inventory = (() => {
         });
     }
     
+    // Add an item to the inventory and update display
+    function addItem(name) {
+        // Create the item
+        const item = createItem(name || generateItemName());
+        
+        // Add to collection
+        itemsCollection.push(item);
+        
+        // Update the display
+        updateDisplay(itemsCollection);
+        
+        // Send to database if available
+        if (typeof Database !== 'undefined') {
+            Database.addInventoryItem(item);
+        }
+        
+        return item;
+    }
+    
     // Public API
     return {
         init,
         generateItemName,
         createItem,
-        updateDisplay
+        updateDisplay,
+        addItem,
+        get items() { return [...itemsCollection]; }
     };
 })();
