@@ -1,0 +1,38 @@
+/* Game display fix styles */
+
+#game-canvas {
+    z-index: 10 !important; /* Ensure canvas is above other elements */
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+}
+
+.debug-overlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    padding: 10px;
+    border-radius: 5px;
+    font-family: monospace;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+/* Make sure inventory panel doesn't overlap important game elements */
+#database-inventory-panel {
+    z-index: 900;
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: rgba(0, 0, 0, 0.8);
+    border: 1px solid #555;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Ensure the original inventory panel is visible */
+#inventory-panel {
+    z-index: 901;
+}

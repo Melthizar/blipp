@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Blipp Database Item Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #222;
+            color: #fff;
+            margin: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #333;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        }
+        h1 {
+            color: #8ff;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+        }
+        button {
+            background-color: #4af;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-family: 'Courier New', monospace;
+        }
+        button:hover {
+            background-color: #38d;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .results {
+            background-color: #222;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 3px solid #4af;
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+        .item-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            margin-right: 10px;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .item-details {
+            flex: 1;
+        }
+        .item-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .item-meta {
+            display: flex;
+            font-size: 12px;
+            color: #aaa;
+        }
+        .item-meta > div {
+            margin-right: 15px;
+        }
+        .item-description {
+            font-size: 13px;
+            margin-top: 5px;
+            font-style: italic;
+            color: #ddd;
+        }
+        .rarity {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+        .rarity-Common { background-color: #aaa; color: white; }
+        .rarity-Uncommon { background-color: #2ecc71; color: white; }
+        .rarity-Rare { background-color: #3498db; color: white; }
+        .rarity-Epic { background-color: #9b59b6; color: white; }
+        .rarity-Legendary { background-color: #f39c12; color: white; }
+        .rarity-Mythic { background-color: #e74c3c; color: white; }
+        .rarity-Unique { background-color: #1abc9c; color: white; }
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            color: #8ff;
+        }
+        .error {
+            color: #f55;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .stat-box {
+            background-color: rgba(0, 100, 200, 0.2);
+            padding: 10px;
+            border-radius: 4px;
+            width: 120px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #8ff;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Blipp Database Item Test</h1>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-value" id="total-items">0</div>
+                <div class="stat-label">Total Items</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="total-categories">0</div>
+                <div class="stat-label">Categories</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="total-rarities">0</div>
+                <div class="stat-label">Rarities</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="fetch-random">Fetch Random Item</button>
+            <button id="fetch-multiple">Fetch 10 Random Items</button>
+            <button id="fetch-by-category">Fetch by Category</button>
+            <button id="fetch-by-rarity">Fetch by Rarity</button>
+            <button id="clear-results">Clear Results</button>
+        </div>
+        
+        <div class="results" id="results">
+            <div class="status">Click a button to fetch items from the database</div>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const API_BASE_URL = 'http://localhost:5000/api';
+        
+        // Check if server is running
+        async function checkServerStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/robot/state`, { mode: 'cors' });
+                return true;
+            } catch (error) {
+                showError(`Cannot connect to database server at ${API_BASE_URL}.<br>Please make sure the server is running.<br>Error: ${error.message}`);
+                return false;
+            }
+        }
+        const ITEM_VISUALS = {
+            "Gear": { symbol: "⚙" },
+            "Chip": { symbol: "▯" },
+            "Circuit": { symbol: "⌘" },
+            "Battery": { symbol: "▮" },
+            "Lens": { symbol: "◎" },
+            "Key": { symbol: "✧" },
+            "Orb": { symbol: "●" },
+            "Cube": { symbol: "◼" },
+            "Shard": { symbol: "◆" },
+            "Transmitter": { symbol: "⌥" },
+            "Processor": { symbol: "⌗" },
+            "Converter": { symbol: "⚡" },
+            "Interface": { symbol: "⌤" },
+            "Projector": { symbol: "◉" },
+            "Module": { symbol: "⬢" },
+            "Component": { symbol: "⚿" },
+            "Device": { symbol: "⌬" },
+            "Cell": { symbol: "⏣" },
+            "Cluster": { symbol: "⌸" },
+            "Emitter": { symbol: "⌖" },
+            "Core": { symbol: "⊛" },
+            "Matrix": { symbol: "⊡" },
+            "Containment": { symbol: "⊕" },
+            "Shifter": { symbol: "⇄" },
+            "Stabilizer": { symbol: "⌀" },
+            "Crystal": { symbol: "✧" },
+            "Beacon": { symbol: "◈" },
+            "Brain": { symbol: "⌬" },
+            "Capsule": { symbol: "⊗" },
+            "Scale": { symbol: "⊿" },
+            "Feather": { symbol: "⇶" },
+            "Horn": { symbol: "⋀" },
+            "Rune": { symbol: "⍟" },
+            "Gem": { symbol: "◈" },
+            "Dust": { symbol: "⁘" },
+            "Pearl": { symbol: "◯" },
+            "Trinket": { symbol: "⌭" },
+            "Tooth": { symbol: "⊼" },
+            "Charm": { symbol: "♦" },
+            "Essence": { symbol: "⊝" },
+            "Totem": { symbol: "⌇" },
+            "Fragment": { symbol: "⌓" },
+            "Sigil": { symbol: "⍥" },
+            "Artifact": { symbol: "⌘" },
+            "Relic": { symbol: "⊹" },
+            "Scroll": { symbol: "⊞" },
+            "Piston": { symbol: "⊥" },
+            "Valve": { symbol: "⊗" },
+            "Wheel": { symbol: "◎" },
+            "Gauge": { symbol: "◉" },
+            "Assembly": { symbol: "⊛" },
+            "Lever": { symbol: "⊢" },
+            "Spring": { symbol: "⌇" },
+            "Encoder": { symbol: "⊡" },
+            "Camshaft": { symbol: "⊣" },
+            "Crankshaft": { symbol: "⊢" },
+            "Bearing": { symbol: "◎" },
+            "System": { symbol: "⌬" },
+            "Actuator": { symbol: "⊻" },
+            "Blade": { symbol: "⊿" },
+            "Ring": { symbol: "◯" },
+            "Relay": { symbol: "⌥" },
+            "Balancer": { symbol: "⊜" },
+            "Mechanism": { symbol: "⚙" },
+            "Tool": { symbol: "⊹" }
+        };
+        
+        // DOM Elements
+        const resultsElement = document.getElementById('results');
+        const totalItemsElement = document.getElementById('total-items');
+        const totalCategoriesElement = document.getElementById('total-categories');
+        const totalRaritiesElement = document.getElementById('total-rarities');
+        
+        // Event Listeners
+        document.getElementById('fetch-random').addEventListener('click', fetchRandomItem);
+        document.getElementById('fetch-multiple').addEventListener('click', fetchMultipleItems);
+        document.getElementById('fetch-by-category').addEventListener('click', fetchByCategory);
+        document.getElementById('fetch-by-rarity').addEventListener('click', fetchByRarity);
+        document.getElementById('clear-results').addEventListener('click', clearResults);
+        
+        // Initialize
+        (async function init() {
+            // First check if server is running
+            const serverRunning = await checkServerStatus();
+            if (serverRunning) {
+                fetchStats();
+            }
+        })();
+        
+        // Functions
+        async function fetchStats() {
+            try {
+                setStatus('Fetching database statistics...');
+                const response = await fetch(`${API_BASE_URL}/item-templates`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const items = await response.json();
+                
+                if (!items || !items.length) {
+                    showError('No items found in database');
+                    return;
+                }
+                
+                // Count categories and rarities
+                const categories = new Set();
+                const rarities = new Set();
+                
+                items.forEach(item => {
+                    if (item.category) categories.add(item.category);
+                    if (item.rarity) rarities.add(item.rarity);
+                });
+                
+                // Update stats
+                totalItemsElement.textContent = items.length;
+                totalCategoriesElement.textContent = categories.size;
+                totalRaritiesElement.textContent = rarities.size;
+                
+            } catch (error) {
+                showError(`Error fetching stats: ${error.message}`);
+            }
+        }
+        
+        async function fetchRandomItem() {
+            try {
+                setStatus('Fetching random item...');
+                
+                const response = await fetch(`${API_BASE_URL}/random-item`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const item = await response.json();
+                
+                if (item.status === 'not_found') {
+                    showError('No items found in database');
+                    return;
+                }
+                
+                clearResults();
+                displayItem(item);
+                setStatus('Successfully fetched random item');
+                
+            } catch (error) {
+                showError(`Error fetching random item: ${error.message}`);
+            }
+        }
+        
+        async function fetchMultipleItems() {
+            try {
+                setStatus('Fetching 10 random items...');
+                
+                const response = await fetch(`${API_BASE_URL}/item-templates?limit=10`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const items = await response.json();
+                
+                if (!items || !items.length) {
+                    showError('No items found in database');
+                    return;
+                }
+                
+                clearResults();
+                items.forEach(item => displayItem(item));
+                setStatus(`Successfully fetched ${items.length} random items`);
+                
+            } catch (error) {
+                showError(`Error fetching multiple items: ${error.message}`);
+            }
+        }
+        
+        async function fetchByCategory() {
+            const categories = [
+                'sci-fi', 'fantasy', 'mechanical', 'scientific', 
+                'ancient', 'futuristic', 'magical', 'technological', 
+                'alien', 'mystical'
+            ];
+            
+            const category = prompt(
+                'Enter a category to fetch items:\n' + 
+                categories.join(', '), 
+                'sci-fi'
+            );
+            
+            if (!category) return;
+            
+            try {
+                setStatus(`Fetching items from category: ${category}...`);
+                
+                const response = await fetch(`${API_BASE_URL}/item-templates?category=${category}&limit=10`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const items = await response.json();
+                
+                if (!items || !items.length) {
+                    showError(`No items found in category: ${category}`);
+                    return;
+                }
+                
+                clearResults();
+                items.forEach(item => displayItem(item));
+                setStatus(`Successfully fetched ${items.length} items from category: ${category}`);
+                
+            } catch (error) {
+                showError(`Error fetching items by category: ${error.message}`);
+            }
+        }
+        
+        async function fetchByRarity() {
+            const rarities = [
+                'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythic', 'Unique'
+            ];
+            
+            const rarity = prompt(
+                'Enter a rarity to fetch items:\n' + 
+                rarities.join(', '), 
+                'Rare'
+            );
+            
+            if (!rarity) return;
+            
+            try {
+                setStatus(`Fetching items with rarity: ${rarity}...`);
+                
+                const response = await fetch(`${API_BASE_URL}/item-templates?rarity=${rarity}&limit=10`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const items = await response.json();
+                
+                if (!items || !items.length) {
+                    showError(`No items found with rarity: ${rarity}`);
+                    return;
+                }
+                
+                clearResults();
+                items.forEach(item => displayItem(item));
+                setStatus(`Successfully fetched ${items.length} items with rarity: ${rarity}`);
+                
+            } catch (error) {
+                showError(`Error fetching items by rarity: ${error.message}`);
+            }
+        }
+        
+        function displayItem(item) {
+            // Get item symbol
+            let symbol = "◌";
+            for (const key in ITEM_VISUALS) {
+                if (item.type.includes(key)) {
+                    symbol = ITEM_VISUALS[key].symbol;
+                    break;
+                }
+            }
+            
+            // Create random color based on item name
+            const hash = hashString(item.name);
+            const hue = hash % 360;
+            const color = `hsl(${hue}, 80%, 50%)`;
+            
+            // Create item element
+            const itemElement = document.createElement('div');
+            itemElement.className = 'item';
+            
+            // Create item icon
+            const iconElement = document.createElement('div');
+            iconElement.className = 'item-icon';
+            iconElement.textContent = symbol;
+            iconElement.style.backgroundColor = color;
+            
+            // Create item details
+            const detailsElement = document.createElement('div');
+            detailsElement.className = 'item-details';
+            
+            // Create item name
+            const nameElement = document.createElement('div');
+            nameElement.className = 'item-name';
+            nameElement.textContent = item.name;
+            
+            if (item.rarity) {
+                const rarityElement = document.createElement('span');
+                rarityElement.className = `rarity rarity-${item.rarity}`;
+                rarityElement.textContent = item.rarity;
+                nameElement.appendChild(rarityElement);
+            }
+            
+            // Create item meta
+            const metaElement = document.createElement('div');
+            metaElement.className = 'item-meta';
+            
+            const typeElement = document.createElement('div');
+            typeElement.textContent = `Type: ${item.type}`;
+            
+            const categoryElement = document.createElement('div');
+            categoryElement.textContent = `Category: ${item.category}`;
+            
+            metaElement.appendChild(typeElement);
+            metaElement.appendChild(categoryElement);
+            
+            // Create item description
+            const descElement = document.createElement('div');
+            descElement.className = 'item-description';
+            descElement.textContent = item.description;
+            
+            // Assemble item
+            detailsElement.appendChild(nameElement);
+            detailsElement.appendChild(metaElement);
+            detailsElement.appendChild(descElement);
+            
+            itemElement.appendChild(iconElement);
+            itemElement.appendChild(detailsElement);
+            
+            resultsElement.appendChild(itemElement);
+        }
+        
+        function clearResults() {
+            resultsElement.innerHTML = '';
+        }
+        
+        function setStatus(message) {
+            clearResults();
+            const statusElement = document.createElement('div');
+            statusElement.className = 'status';
+            statusElement.textContent = message;
+            resultsElement.appendChild(statusElement);
+        }
+        
+        function showError(message) {
+            clearResults();
+            const errorElement = document.createElement('div');
+            errorElement.className = 'status error';
+            errorElement.textContent = message;
+            resultsElement.appendChild(errorElement);
+        }
+        
+        function hashString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0; // Convert to 32bit integer
+            }
+            return Math.abs(hash);
+        }
+    </script>
+</body>
+</html>

@@ -111,20 +111,8 @@ const Robot = (() => {
     }
     
     function createJumpEffect() {
-        // Create visual jump effect if renderer is available
-        if (typeof Renderer !== 'undefined' && Renderer.addParticleEffect) {
-            Renderer.addParticleEffect(
-                robot.x + robot.width / 2,
-                robot.y + robot.height,
-                {
-                    count: 8,
-                    color: 'rgba(200, 200, 200, 0.5)',
-                    size: 3,
-                    speedMultiplier: 0.8,
-                    gravity: false
-                }
-            );
-        }
+        // Jump effect removed as requested
+        // No particles will appear under the robot's feet when jumping
     }
     
     function createJetpackEffect() {
@@ -199,32 +187,8 @@ const Robot = (() => {
     }
     
     function createLandingEffect() {
-        // Create visual dust effect when landing
-        if (typeof Renderer !== 'undefined' && Renderer.addParticleEffect) {
-            Renderer.addParticleEffect(
-                robot.x + robot.width / 2 - 5,
-                robot.y + robot.height,
-                {
-                    count: 6,
-                    color: 'rgba(180, 180, 160, 0.5)',
-                    size: 2,
-                    speedMultiplier: 0.5,
-                    gravity: false
-                }
-            );
-            
-            Renderer.addParticleEffect(
-                robot.x + robot.width / 2 + 5,
-                robot.y + robot.height,
-                {
-                    count: 6,
-                    color: 'rgba(180, 180, 160, 0.5)',
-                    size: 2,
-                    speedMultiplier: 0.5,
-                    gravity: false
-                }
-            );
-        }
+        // Landing effect removed as requested
+        // No dust particles will appear under the robot's feet when landing
     }
     
     function createItemCollectionEffect(x, y) {
@@ -314,15 +278,15 @@ const Robot = (() => {
                 
                 if (dugTile?.hasItem) {
                     // Found an item!
-                    let itemName = Inventory.generateItemName();
                     
-                    // Add to inventory using the new method that also updates the database
-                    Inventory.addItem(itemName);
-                    
-                    // Create item collection effect
-                    const worldX = robot.digX * World.TILE_SIZE - World.worldOffset;
-                    const worldY = robot.digY * World.TILE_SIZE;
-                    createItemCollectionEffect(worldX + World.TILE_SIZE / 2, worldY + World.TILE_SIZE / 2);
+                    // Add to inventory using the async method that fetches from database
+                    // We don't need to specify a name - it will fetch from the database
+                    Inventory.addItem().then(() => {
+                        // Create item collection effect after item is added
+                        const worldX = robot.digX * World.TILE_SIZE - World.worldOffset;
+                        const worldY = robot.digY * World.TILE_SIZE;
+                        createItemCollectionEffect(worldX + World.TILE_SIZE / 2, worldY + World.TILE_SIZE / 2);
+                    });
                 }
                 
                 // Create debris effect
@@ -356,8 +320,10 @@ const Robot = (() => {
         }
     }
     
-    function checkCollisions() {
-        robot.isGrounded = false;
+    // Separate collision checks for horizontal and vertical movement for better physics
+    function checkHorizontalCollisions() {
+        // Store previous position for better collision resolution
+        const prevX = robot.x;
         
         // Get the grid positions the robot is occupying
         let robotLeft = Math.floor((robot.x + World.worldOffset) / World.TILE_SIZE);
@@ -365,7 +331,53 @@ const Robot = (() => {
         let robotTop = Math.floor(robot.y / World.TILE_SIZE);
         let robotBottom = Math.floor((robot.y + robot.height - 1) / World.TILE_SIZE);
         
-        // Check for floor collision (robot's feet)
+        // Check for horizontal collisions with solid blocks
+        let isColliding = false;
+        
+        for (let y = robotTop; y <= robotBottom; y++) {
+            for (let x = robotLeft; x <= robotRight; x++) {
+                let tile = World.getTile(x, y);
+                if (tile && (tile.type === 'ground' || tile.type === 'bedrock')) {
+                    isColliding = true;
+                    
+                    // Calculate horizontal overlaps
+                    let overlapLeft = (x + 1) * World.TILE_SIZE - World.worldOffset - robot.x;
+                    let overlapRight = robot.x + robot.width - x * World.TILE_SIZE + World.worldOffset;
+                    
+                    // Determine which side has the smallest overlap
+                    if (overlapLeft < overlapRight && robot.vx <= 0) {
+                        // Collision from the left
+                        robot.x = (x + 1) * World.TILE_SIZE - World.worldOffset;
+                        robot.vx = 0;
+                    } else if (overlapRight <= overlapLeft && robot.vx >= 0) {
+                        // Collision from the right
+                        robot.x = x * World.TILE_SIZE - robot.width + World.worldOffset;
+                        robot.vx = 0;
+                    }
+                }
+            }
+        }
+        
+        // Safety check - if still colliding, reset to previous position
+        if (isColliding && robot.vx !== 0) {
+            robot.x = prevX;
+            robot.vx = 0;
+        }
+    }
+    
+    function checkVerticalCollisions() {
+        robot.isGrounded = false;
+        
+        // Store previous position for better collision resolution
+        const prevY = robot.y;
+        
+        // Get the grid positions the robot is occupying
+        let robotLeft = Math.floor((robot.x + World.worldOffset) / World.TILE_SIZE);
+        let robotRight = Math.floor((robot.x + robot.width - 1 + World.worldOffset) / World.TILE_SIZE);
+        let robotTop = Math.floor(robot.y / World.TILE_SIZE);
+        let robotBottom = Math.floor((robot.y + robot.height - 1) / World.TILE_SIZE);
+        
+        // First check for floor collision (robot's feet) - more precise check for standing on ground
         let checkingFloor = robotBottom + 1;
         if (checkingFloor < World.GRID_HEIGHT) {
             for (let x = robotLeft; x <= robotRight; x++) {
@@ -376,40 +388,42 @@ const Robot = (() => {
                     let distance = floorY - feetY;
                     
                     if (distance >= 0 && distance <= 10) {
+                        // Snap to floor precisely
+                        robot.y = floorY - robot.height;
+                        robot.vy = 0;
+                        
                         // Check if just landed from a jump
-                        if (!robot.isGrounded && robot.vy > 2 && !lastGroundedState) {
+                        if (!robot.isGrounded && robot.vy > 0 && !lastGroundedState) {
                             createLandingEffect();
                         }
                         
                         robot.isGrounded = true;
                         robot.isJumping = false;
-                        robot.vy = 0;
-                        break;
+                        return; // Exit early if we found solid ground
                     }
                 }
             }
         }
         
-        // Traditional collision checking
+        // Then check for collisions with blocks
+        let isColliding = false;
+        
         for (let y = robotTop; y <= robotBottom; y++) {
             for (let x = robotLeft; x <= robotRight; x++) {
                 let tile = World.getTile(x, y);
                 if (tile && (tile.type === 'ground' || tile.type === 'bedrock')) {
-                    // Calculate the overlaps on each side
-                    let overlapLeft = (x + 1) * World.TILE_SIZE - World.worldOffset - robot.x;
-                    let overlapRight = robot.x + robot.width - x * World.TILE_SIZE + World.worldOffset;
+                    isColliding = true;
+                    
+                    // Calculate vertical overlaps
                     let overlapTop = (y + 1) * World.TILE_SIZE - robot.y;
                     let overlapBottom = robot.y + robot.height - y * World.TILE_SIZE;
                     
-                    // Find the smallest overlap
-                    let minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
-                    
-                    // Resolve the collision based on the smallest overlap
-                    if (minOverlap === overlapTop && robot.vy < 0) {
+                    // Determine which side has the smallest overlap
+                    if (overlapTop < overlapBottom && robot.vy <= 0) {
                         // Collision from the top
                         robot.y = (y + 1) * World.TILE_SIZE;
                         robot.vy = 0;
-                    } else if (minOverlap === overlapBottom && robot.vy > 0) {
+                    } else if (overlapBottom <= overlapTop && robot.vy >= 0) {
                         // Collision from the bottom
                         robot.y = y * World.TILE_SIZE - robot.height;
                         robot.vy = 0;
@@ -421,18 +435,28 @@ const Robot = (() => {
                         
                         robot.isGrounded = true;
                         robot.isJumping = false;
-                    } else if (minOverlap === overlapLeft && robot.vx < 0) {
-                        // Collision from the left
-                        robot.x = (x + 1) * World.TILE_SIZE - World.worldOffset;
-                        robot.vx = 0;
-                    } else if (minOverlap === overlapRight && robot.vx > 0) {
-                        // Collision from the right
-                        robot.x = x * World.TILE_SIZE - robot.width + World.worldOffset;
-                        robot.vx = 0;
                     }
                 }
             }
         }
+        
+        // Safety check - if still colliding, reset to previous position
+        if (isColliding && robot.vy !== 0) {
+            robot.y = prevY;
+            robot.vy = 0;
+            
+            // If we were falling, consider us grounded
+            if (robot.vy > 0) {
+                robot.isGrounded = true;
+                robot.isJumping = false;
+            }
+        }
+    }
+    
+    // Keep the original function for backward compatibility but make it use the new functions
+    function checkCollisions() {
+        checkHorizontalCollisions();
+        checkVerticalCollisions();
     }
     
     function update(canvasWidth, canvasHeight) {
@@ -466,11 +490,10 @@ const Robot = (() => {
             // Cap falling speed
             if (robot.vy > 15) robot.vy = 15;
             
-            // Apply velocity
+            // First apply horizontal velocity and check collisions
             robot.x += robot.vx;
-            robot.y += robot.vy;
             
-            // World bounds
+            // World bounds horizontal
             if (robot.x < 0 && World.worldOffset <= 0) {
                 robot.x = 0;
                 robot.vx = 0;
@@ -483,8 +506,12 @@ const Robot = (() => {
                 robot.vx = 0;
             }
             
-            // Check collision with the world
-            checkCollisions();
+            // Check horizontal collisions first
+            checkHorizontalCollisions();
+            
+            // Then apply vertical velocity and check vertical collisions separately
+            robot.y += robot.vy;
+            checkVerticalCollisions();
             
             // Prevent falling through the bottom of the screen
             if (robot.y > canvasHeight - robot.height) {

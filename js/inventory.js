@@ -35,26 +35,43 @@ const Inventory = (() => {
     // DOM elements
     let inventoryListElement;
     let inventoryCount;
+    let inventoryToggle;
+    let latestItemContent;
     
     // Item tracking
     let itemsCollection = [];
     let newItemTimer = 0;
+    let isInventoryExpanded = false;
     
     // Initialize inventory system
     function init() {
+        // Get DOM elements
         inventoryListElement = document.getElementById('inventory-list');
+        inventoryCount = document.getElementById('inventory-count');
+        inventoryToggle = document.getElementById('inventory-toggle');
+        latestItemContent = document.querySelector('.latest-item-content');
         
-        // Create inventory count element
-        inventoryCount = document.createElement('div');
-        inventoryCount.className = 'inventory-count';
-        inventoryCount.innerHTML = '0 items';
-        
-        // Add count before list
-        const inventoryPanel = document.getElementById('inventory-panel');
-        inventoryPanel.insertBefore(inventoryCount, inventoryListElement);
+        // Set up toggle functionality
+        const inventoryHeader = document.getElementById('inventory-header');
+        inventoryHeader.addEventListener('click', toggleInventory);
         
         // Add animation keyframes for new items
         addAnimationStyles();
+    }
+    
+    // Toggle inventory list visibility
+    function toggleInventory() {
+        isInventoryExpanded = !isInventoryExpanded;
+        
+        if (isInventoryExpanded) {
+            inventoryListElement.classList.remove('collapsed');
+            inventoryToggle.textContent = '▼';
+            inventoryToggle.style.transform = 'rotate(0deg)';
+        } else {
+            inventoryListElement.classList.add('collapsed');
+            inventoryToggle.textContent = '▲';
+            inventoryToggle.style.transform = 'rotate(180deg)';
+        }
     }
     
     // Add necessary CSS animations dynamically
@@ -114,6 +131,24 @@ const Inventory = (() => {
         const prefix = ITEM_NAME_PREFIXES[Math.floor(Math.random() * ITEM_NAME_PREFIXES.length)];
         const object = ITEM_NAME_OBJECTS[Math.floor(Math.random() * ITEM_NAME_OBJECTS.length)];
         return `${prefix} ${object}`;
+    }
+    
+    // Fetch a random item from the database
+    async function fetchRandomItem() {
+        try {
+            const response = await fetch(`${Database.API_BASE_URL}/random-item`);
+            const item = await response.json();
+            
+            if (item.status === 'not_found') {
+                // Fallback to local generation if no items in database
+                return null;
+            }
+            
+            return item;
+        } catch (error) {
+            console.error('Error fetching random item:', error);
+            return null;
+        }
     }
     
     // Create an item object with visual properties
@@ -223,6 +258,12 @@ const Inventory = (() => {
         // Sort items by timestamp (newest first)
         const sortedItems = [...itemsCollection].sort((a, b) => b.timestamp - a.timestamp);
         
+        // Update latest item display
+        if (sortedItems.length > 0) {
+            const latestItem = sortedItems[0];
+            updateLatestItemDisplay(latestItem);
+        }
+        
         // Clear current inventory display
         inventoryListElement.innerHTML = '';
         
@@ -245,6 +286,15 @@ const Inventory = (() => {
             const nameElement = document.createElement('span');
             nameElement.textContent = item.name;
             
+            // Add rarity if available
+            if (item.rarity) {
+                const rarityElement = document.createElement('span');
+                rarityElement.className = `item-rarity rarity-${item.rarity}`;
+                rarityElement.textContent = item.rarity;
+                nameElement.appendChild(document.createElement('br'));
+                nameElement.appendChild(rarityElement);
+            }
+            
             // Assemble item
             itemElement.appendChild(iconElement);
             itemElement.appendChild(nameElement);
@@ -252,10 +302,92 @@ const Inventory = (() => {
         });
     }
     
+    // Update the latest item display
+    function updateLatestItemDisplay(item) {
+        if (!item) return;
+        
+        // Clear previous content
+        latestItemContent.innerHTML = '';
+        
+        // Create icon
+        const iconElement = document.createElement('span');
+        iconElement.className = 'item-icon';
+        iconElement.textContent = item.symbol;
+        iconElement.style.backgroundColor = item.color;
+        
+        // Create name container
+        const nameContainer = document.createElement('div');
+        nameContainer.style.marginLeft = '8px';
+        
+        // Add item name
+        const nameElement = document.createElement('div');
+        nameElement.textContent = item.name;
+        nameContainer.appendChild(nameElement);
+        
+        // Add rarity if available
+        if (item.rarity) {
+            const rarityElement = document.createElement('div');
+            rarityElement.className = `item-rarity rarity-${item.rarity}`;
+            rarityElement.textContent = item.rarity;
+            rarityElement.style.fontSize = '10px';
+            rarityElement.style.display = 'inline-block';
+            rarityElement.style.padding = '2px 5px';
+            rarityElement.style.borderRadius = '3px';
+            rarityElement.style.marginTop = '3px';
+            nameContainer.appendChild(rarityElement);
+        }
+        
+        // Assemble latest item display
+        latestItemContent.appendChild(iconElement);
+        latestItemContent.appendChild(nameContainer);
+        
+        // Add pulse animation to latest item
+        latestItemContent.classList.add('pulse-animation');
+        setTimeout(() => {
+            latestItemContent.classList.remove('pulse-animation');
+        }, 2000);
+    }
+    
     // Add an item to the inventory and update display
-    function addItem(name) {
-        // Create the item
-        const item = createItem(name || generateItemName());
+    async function addItem(name) {
+        let item;
+        
+        if (name) {
+            // If a specific name is provided, create that item
+            item = createItem(name);
+        } else {
+            // Try to fetch a random item from the database first
+            const dbItem = await fetchRandomItem();
+            
+            if (dbItem) {
+                // If we got an item from the database, use it
+                const baseVisual = ITEM_VISUALS[dbItem.type] || 
+                                  ITEM_VISUALS[dbItem.type.split(' ')[0]] || 
+                                  { color: "#fff", symbol: "◌" };
+                
+                const prefixMod = PREFIX_MODIFIERS[dbItem.prefix] || 
+                                 PREFIX_MODIFIERS[dbItem.prefix.split(' ')[0]] || 
+                                 { hueShift: 0, saturationMult: 1, lightnessMult: 1 };
+                
+                // Apply prefix modifiers to create unique item appearance
+                const itemColor = modifyColor(baseVisual.color, prefixMod);
+                
+                item = {
+                    name: dbItem.name,
+                    type: dbItem.type,
+                    prefix: dbItem.prefix,
+                    color: itemColor,
+                    symbol: baseVisual.symbol,
+                    rarity: dbItem.rarity,
+                    description: dbItem.description,
+                    category: dbItem.category,
+                    timestamp: Date.now()
+                };
+            } else {
+                // Fallback to local generation if database fetch failed
+                item = createItem(generateItemName());
+            }
+        }
         
         // Add to collection
         itemsCollection.push(item);

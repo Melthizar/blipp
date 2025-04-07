@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Connection Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #222;
+            color: #ddd;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #8ff;
+            text-align: center;
+        }
+        .test-panel {
+            background-color: #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        .test-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4a5;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #3b4;
+        }
+        .results {
+            background-color: #222;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 15px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #4f8;
+        }
+        .error {
+            color: #f55;
+        }
+        .info {
+            color: #5af;
+        }
+        .endpoint {
+            margin-bottom: 5px;
+            padding: 5px;
+            background-color: #2a2a2a;
+            border-radius: 4px;
+        }
+        .endpoint-url {
+            color: #8af;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Database Connection Test</h1>
+    
+    <div class="test-panel">
+        <h2>Connection Settings</h2>
+        <div class="endpoint">
+            <span>API Base URL: </span>
+            <span class="endpoint-url" id="api-url">http://localhost:5000/api</span>
+        </div>
+        <div class="test-controls">
+            <button id="test-connection">Test Connection</button>
+            <button id="test-health">Check Health</button>
+            <button id="test-status">Server Status</button>
+            <button id="clear-results">Clear Results</button>
+        </div>
+        <div class="results" id="results"></div>
+    </div>
+    
+    <div class="test-panel">
+        <h2>Basic API Tests</h2>
+        <div class="test-controls">
+            <button id="test-get-robot">Get Robot State</button>
+            <button id="test-random-item">Get Random Item</button>
+        </div>
+        <div class="results" id="api-results"></div>
+    </div>
+
+    <script>
+        // Elements
+        const resultsEl = document.getElementById('results');
+        const apiResultsEl = document.getElementById('api-results');
+        const apiUrlEl = document.getElementById('api-url');
+        
+        // API URL
+        const API_BASE_URL = 'http://localhost:5000/api';
+        apiUrlEl.textContent = API_BASE_URL;
+        
+        // Log functions
+        function log(message, type = 'info', target = resultsEl) {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `[${timestamp}] ${message}`;
+            target.appendChild(entry);
+            target.scrollTop = target.scrollHeight;
+        }
+        
+        function clearResults() {
+            resultsEl.innerHTML = '';
+            apiResultsEl.innerHTML = '';
+        }
+        
+        // Test connection
+        async function testConnection() {
+            log('Testing database connection...', 'info');
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE_URL}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-cache'
+                });
+                const endTime = Date.now();
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Connection successful! Response time: ${endTime - startTime}ms`, 'success');
+                    log(`Server response: ${JSON.stringify(data)}`, 'info');
+                    return true;
+                } else {
+                    log(`❌ Connection failed with status: ${response.status}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Connection error: ${error.message}`, 'error');
+                log('Make sure the database server is running (python game_db.py)', 'info');
+                return false;
+            }
+        }
+        
+        // Test health endpoint
+        async function testHealth() {
+            log('Testing health endpoint...', 'info');
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-cache'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Health check successful!`, 'success');
+                    log(`Health data: ${JSON.stringify(data)}`, 'info');
+                } else {
+                    log(`❌ Health check failed with status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Health check error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Test server status
+        async function testStatus() {
+            log('Testing server status endpoint...', 'info');
+            try {
+                const response = await fetch(`${API_BASE_URL}/server/status`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-cache'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Status check successful!`, 'success');
+                    log(`Server uptime: ${data.uptime}`, 'info');
+                    log(`Request count: ${data.request_count}`, 'info');
+                    
+                    if (data.database_stats) {
+                        log(`Database items: ${data.database_stats.inventory_items || 0}`, 'info');
+                        log(`Robot states: ${data.database_stats.robot_state_entries || 0}`, 'info');
+                    }
+                } else {
+                    log(`❌ Status check failed with status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Status check error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Test get robot state
+        async function testGetRobot() {
+            log('Testing get robot state...', 'info', apiResultsEl);
+            try {
+                const response = await fetch(`${API_BASE_URL}/robot/state`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-cache'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Got robot state successfully!`, 'success', apiResultsEl);
+                    log(`Robot data: ${JSON.stringify(data)}`, 'info', apiResultsEl);
+                } else {
+                    log(`❌ Get robot state failed with status: ${response.status}`, 'error', apiResultsEl);
+                }
+            } catch (error) {
+                log(`❌ Get robot state error: ${error.message}`, 'error', apiResultsEl);
+            }
+        }
+        
+        // Test get random item
+        async function testRandomItem() {
+            log('Testing get random item...', 'info', apiResultsEl);
+            try {
+                const response = await fetch(`${API_BASE_URL}/inventory/random`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    cache: 'no-cache'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Got random item successfully!`, 'success', apiResultsEl);
+                    log(`Item: ${data.name} (${data.rarity})`, 'info', apiResultsEl);
+                    log(`Item data: ${JSON.stringify(data)}`, 'info', apiResultsEl);
+                } else {
+                    log(`❌ Get random item failed with status: ${response.status}`, 'error', apiResultsEl);
+                }
+            } catch (error) {
+                log(`❌ Get random item error: ${error.message}`, 'error', apiResultsEl);
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('test-connection').addEventListener('click', testConnection);
+        document.getElementById('test-health').addEventListener('click', testHealth);
+        document.getElementById('test-status').addEventListener('click', testStatus);
+        document.getElementById('clear-results').addEventListener('click', clearResults);
+        document.getElementById('test-get-robot').addEventListener('click', testGetRobot);
+        document.getElementById('test-random-item').addEventListener('click', testRandomItem);
+        
+        // Run initial connection test
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Database connection test page loaded', 'info');
+            testConnection();
+        });
+    </script>
+</body>
+</html>

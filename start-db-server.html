@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Starting Database Server</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #222;
+            color: #8ff;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #333;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        }
+        h1 {
+            color: #8ff;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+        .log {
+            text-align: left;
+            background-color: #111;
+            padding: 10px;
+            border-radius: 4px;
+            height: 200px;
+            overflow-y: auto;
+            margin-top: 20px;
+            color: #aaa;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px dotted #333;
+            padding-bottom: 5px;
+        }
+        .success {
+            color: #4f8;
+        }
+        .error {
+            color: #f55;
+        }
+        .warning {
+            color: #fa5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Database Server Launcher</h1>
+        <div class="status" id="status">Starting database server...</div>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        // Elements
+        const statusElement = document.getElementById('status');
+        const logElement = document.getElementById('log');
+        
+        // Log a message
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logElement.appendChild(entry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        // Start the database server
+        function startServer() {
+            log('Attempting to start database server...');
+            
+            // Use ActiveXObject to run a command (works in IE/Edge)
+            try {
+                const shell = new ActiveXObject('WScript.Shell');
+                shell.Run('python game_db.py', 0, false);
+                log('Server process started successfully', 'success');
+                statusElement.textContent = 'Database server started!';
+                return true;
+            } catch (e) {
+                log(`ActiveX method failed: ${e.message}`, 'error');
+            }
+            
+            // Try alternative method using window.open
+            try {
+                log('Trying alternative launch method...');
+                const serverWindow = window.open('cmd://python game_db.py', '_blank');
+                if (serverWindow) {
+                    log('Alternative launch method succeeded', 'success');
+                    statusElement.textContent = 'Database server started!';
+                    return true;
+                } else {
+                    log('Alternative launch failed - popup blocked?', 'warning');
+                }
+            } catch (e) {
+                log(`Alternative method failed: ${e.message}`, 'error');
+            }
+            
+            // If we get here, both methods failed
+            log('All automatic launch methods failed', 'error');
+            log('Please start the server manually by running "python game_db.py"', 'warning');
+            statusElement.textContent = 'Failed to start server automatically';
+            return false;
+        }
+        
+        // Start the server when the page loads
+        window.onload = function() {
+            startServer();
+        };
+    </script>
+</body>
+</html>

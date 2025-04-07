@@ -8,8 +8,8 @@ body {
 
 #game-container {
     position: relative;
-    width: 800px;
-    height: 600px;
+    width: 1000px;
+    height: 700px;
     margin: 20px auto;
     overflow: hidden;
     border: 2px solid #444;
@@ -25,12 +25,12 @@ body {
 }
 
 #inventory-panel {
-    position: absolute;
-    top: 10px;
+    position: fixed;
+    top: 100px;
     right: 10px;
-    width: 180px;
+    width: 200px;
     padding: 12px;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.8);
     border: 1px solid #444;
     border-radius: 5px;
     z-index: 100;
@@ -42,16 +42,53 @@ body {
     box-shadow: 0 0 15px rgba(0, 150, 255, 0.4);
 }
 
-#inventory-title {
-    text-align: center;
+#inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 10px;
+    border-bottom: 1px solid #444;
+    padding-bottom: 8px;
+    cursor: pointer;
+}
+
+#inventory-title {
     color: #8ff;
     font-size: 14px;
     text-transform: uppercase;
     letter-spacing: 2px;
     text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
-    border-bottom: 1px solid #444;
-    padding-bottom: 8px;
+}
+
+#inventory-count {
+    font-size: 12px;
+    color: #aaa;
+}
+
+#inventory-toggle {
+    color: #8ff;
+    font-size: 12px;
+    transition: transform 0.3s ease;
+}
+
+#latest-item {
+    margin: 10px 0;
+    padding: 8px;
+    background-color: rgba(0, 50, 80, 0.3);
+    border-radius: 4px;
+    border-left: 2px solid #4af;
+}
+
+.latest-item-label {
+    font-size: 12px;
+    color: #8ff;
+    margin-bottom: 5px;
+}
+
+.latest-item-content {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
 }
 
 #inventory-list {
@@ -61,6 +98,15 @@ body {
     padding-right: 5px;
     scrollbar-width: thin;
     scrollbar-color: #444 #222;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+#inventory-list.collapsed {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    margin: 0;
+    padding: 0;
 }
 
 #inventory-list::-webkit-scrollbar {
@@ -81,8 +127,57 @@ body {
     background-color: #666;
 }
 
-.inventory-item {
-    /* Styles moved to dynamic JavaScript creation */
+.item-rarity {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-top: 3px;
+}
+
+.rarity-Common {
+    background-color: #aaa;
+    color: white;
+}
+
+.rarity-Uncommon {
+    background-color: #2ecc71;
+    color: white;
+}
+
+.rarity-Rare {
+    background-color: #3498db;
+    color: white;
+}
+
+.rarity-Epic {
+    background-color: #9b59b6;
+    color: white;
+}
+
+.rarity-Legendary {
+    background-color: #f39c12;
+    color: white;
+}
+
+.rarity-Mythic {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.rarity-Unique {
+    background-color: #1abc9c;
+    color: white;
+}
+
+@keyframes pulse-glow {
+    0% { box-shadow: 0 0 0 rgba(66, 200, 255, 0); }
+    50% { box-shadow: 0 0 10px rgba(66, 200, 255, 0.7); }
+    100% { box-shadow: 0 0 0 rgba(66, 200, 255, 0); }
+}
+
+.pulse-animation {
+    animation: pulse-glow 1.5s ease-in-out;
 }
 
 .game-info {

@@ -15,12 +15,43 @@ const Renderer = (() => {
         canvas = document.getElementById('game-canvas');
         ctx = canvas.getContext('2d');
         
-        // Set canvas size
-        canvas.width = World.GRID_WIDTH * World.TILE_SIZE;
-        canvas.height = World.GRID_HEIGHT * World.TILE_SIZE;
+        // Set canvas size to fill the game container
+        const gameContainer = document.getElementById('game-container');
+        canvas.width = gameContainer.clientWidth;
+        canvas.height = gameContainer.clientHeight;
+        
+        // Update world grid size based on canvas dimensions
+        World.GRID_WIDTH = Math.ceil(canvas.width / World.TILE_SIZE);
+        World.GRID_HEIGHT = Math.ceil(canvas.height / World.TILE_SIZE);
         
         // Initialize star layers for parallax effect
         initStars();
+        
+        // Add resize handler to adjust canvas if window size changes
+        window.addEventListener('resize', handleResize);
+    }
+    
+    function handleResize() {
+        // Get the game container dimensions
+        const gameContainer = document.getElementById('game-container');
+        
+        // Only resize if dimensions have changed
+        if (canvas.width !== gameContainer.clientWidth || 
+            canvas.height !== gameContainer.clientHeight) {
+            
+            // Update canvas size
+            canvas.width = gameContainer.clientWidth;
+            canvas.height = gameContainer.clientHeight;
+            
+            // Update world grid size
+            World.GRID_WIDTH = Math.ceil(canvas.width / World.TILE_SIZE);
+            World.GRID_HEIGHT = Math.ceil(canvas.height / World.TILE_SIZE);
+            
+            // Reinitialize stars for the new canvas size
+            backgroundStars = [];
+            midgroundStars = [];
+            initStars();
+        }
     }
     
     function initStars() {
@@ -144,17 +175,16 @@ const Renderer = (() => {
                     let drawX = x * World.TILE_SIZE - (World.worldOffset % World.TILE_SIZE);
                     
                     if (tile.type === 'ground') {
-                        // Enhanced ground tile with texture
-                        let groundNoise = (Math.sin(worldX * 0.7) + Math.cos(y * 0.8)) * 15;
-                        let colorValue = 85 + Math.floor(groundNoise);
-                        let colorBrightness = Math.min(255, Math.max(0, colorValue));
+                        // Solid ground color with minimal variation based on depth
+                        // Deeper ground is slightly darker
+                        const depthFactor = Math.min(1, y / 15); // Normalize depth effect
                         
-                        // Main ground color with variation
-                        ctx.fillStyle = `rgb(${colorBrightness - 30}, ${colorBrightness - 20}, ${colorBrightness - 40})`;
+                        // More solid ground color - brown/tan
+                        ctx.fillStyle = `rgb(150, 120, 90)`;
                         ctx.fillRect(drawX, y * World.TILE_SIZE, World.TILE_SIZE, World.TILE_SIZE);
                         
-                        // Top edge of ground with variation
-                        ctx.fillStyle = `rgb(${colorBrightness}, ${colorBrightness}, ${colorBrightness - 20})`;
+                        // Top edge highlight
+                        ctx.fillStyle = `rgb(170, 140, 100)`;
                         ctx.fillRect(drawX, y * World.TILE_SIZE, World.TILE_SIZE, 4);
                         
                         // Item indicator with glow effect
@@ -195,22 +225,16 @@ const Renderer = (() => {
                             }
                         }
                     } else if (tile.type === 'bedrock') {
-                        // Enhanced bedrock tile with texture
-                        ctx.fillStyle = '#333';
+                        // Solid bedrock color - dark gray/blue
+                        ctx.fillStyle = '#2a2a33';
                         ctx.fillRect(drawX, y * World.TILE_SIZE, World.TILE_SIZE, World.TILE_SIZE);
                         
-                        // Random texture pattern based on position
-                        ctx.fillStyle = '#222';
-                        const seed = worldX * 100 + y * 10;
+                        // Simple highlight pattern
+                        ctx.fillStyle = '#353540';
                         
-                        for (let i = 0; i < 5; i++) {
-                            const pattern = Math.sin(seed + i * 10) + Math.cos(seed + i * 20);
-                            const dotX = drawX + ((pattern * 10) % World.TILE_SIZE);
-                            const dotY = y * World.TILE_SIZE + ((pattern * 15) % World.TILE_SIZE);
-                            
-                            const dotSize = 2 + Math.abs(Math.sin(seed + i * 30)) * 3;
-                            ctx.fillRect(dotX, dotY, dotSize, dotSize);
-                        }
+                        // Add a simple pattern of lines instead of random dots
+                        ctx.fillRect(drawX + 2, y * World.TILE_SIZE + 5, World.TILE_SIZE - 4, 2);
+                        ctx.fillRect(drawX + 5, y * World.TILE_SIZE + 12, World.TILE_SIZE - 10, 3);
                     }
                 }
             }

@@ -18,6 +18,7 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+.idea/
 
 # Environment files
 .env
@@ -29,6 +30,9 @@ Thumbs.db
 # Dependency directories
 node_modules/
 jspm_packages/
+venv/
+__pycache__/
+*.py[cod]
 
 # Logs
 logs
@@ -39,3 +43,19 @@ yarn-error.log*
 
 # Backup files
 backup/
+*.bak
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Debug files
+debug.js
+debug-*.js
+*.debug.*
+
+# Temporary files
+tmp/
+temp/
+*.tmp

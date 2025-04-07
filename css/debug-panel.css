@@ -1,0 +1,165 @@
+/* Debug Panel Styles */
+#debug-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 150px;
+    background-color: rgba(0, 0, 0, 0.85);
+    border-top: 1px solid #444;
+    color: #ddd;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+}
+
+#debug-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 10px;
+    background-color: #222;
+    border-bottom: 1px solid #444;
+}
+
+#debug-title {
+    color: #8ff;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#debug-controls {
+    display: flex;
+    gap: 5px;
+}
+
+#debug-controls button {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 2px 5px;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+#debug-controls button:hover {
+    background-color: #444;
+}
+
+#debug-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.debug-section {
+    flex: 1;
+    padding: 5px;
+    overflow-y: auto;
+    border-right: 1px solid #333;
+}
+
+.debug-section:last-child {
+    border-right: none;
+}
+
+.debug-section-title {
+    color: #8ff;
+    margin-bottom: 5px;
+    padding-bottom: 3px;
+    border-bottom: 1px dotted #444;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.debug-log {
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+    max-height: 100%;
+    overflow-y: auto;
+}
+
+.debug-log li {
+    margin-bottom: 3px;
+    padding-bottom: 3px;
+    border-bottom: 1px dotted #333;
+    word-break: break-all;
+}
+
+.debug-log .error {
+    color: #f55;
+}
+
+.debug-log .warning {
+    color: #fa5;
+}
+
+.debug-log .success {
+    color: #5f5;
+}
+
+.debug-log .info {
+    color: #5af;
+}
+
+.debug-log .timestamp {
+    color: #888;
+    margin-right: 5px;
+    font-size: 10px;
+}
+
+.debug-stat {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+    padding-bottom: 3px;
+    border-bottom: 1px dotted #333;
+}
+
+.debug-stat-name {
+    color: #aaa;
+}
+
+.debug-stat-value {
+    color: #5af;
+    font-weight: bold;
+}
+
+/* Collapsed state */
+#debug-panel.collapsed {
+    height: 30px;
+}
+
+#debug-panel.collapsed #debug-content {
+    display: none;
+}
+
+/* Toggle button */
+#debug-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Scrollbar styles */
+.debug-section::-webkit-scrollbar {
+    width: 8px;
+}
+
+.debug-section::-webkit-scrollbar-track {
+    background: #222;
+}
+
+.debug-section::-webkit-scrollbar-thumb {
+    background-color: #444;
+    border-radius: 4px;
+}
+
+.debug-section::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
